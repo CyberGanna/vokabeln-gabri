@@ -169,8 +169,8 @@ const PER_NIGHT=20, OLD_PER_NIGHT=3, EXTRA_STEP=5;
 /* Finite le 20 l'app chiede se ne vuole altre 5 (con tutti i round) o se si continua domani. */
 const extraToday=()=>((S.extra||{})[today()]||0);
 const newPerNight=()=>PER_NIGHT-(currentIdx()>0?OLD_PER_NIGHT:0)+extraToday();
-const DOC_PATH="progressi/gabri";
-const LS_KEY="vokabeln-gabri-v3"; // v3: azzerato il 2026-10-31 (nuova logica a round)
+const DOC_PATH="progressi/gabri-v4";
+const LS_KEY="vokabeln-gabri-v4"; // v4: azzerato il 2026-10-31 sera, per Gabriele e Nicolò
 
 /* ---------- utility ---------- */
 const $=s=>document.querySelector(s);
