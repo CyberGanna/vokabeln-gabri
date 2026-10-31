@@ -167,7 +167,7 @@ function lsSet(v){try{localStorage.setItem(LS_KEY,JSON.stringify(v))}catch(e){}}
 /* ---------- stato ---------- */
 function blank(){return {cards:{},liste:[],giorni:{},fatto:{},direzione:"it-de",modo:"misto",updatedAt:0}}
 let S=Object.assign(blank(),lsGet()||{});
-let db=null, view="home", Q=null, saving=false, dirty=false, saveTimer=null, syncNote="";
+let resetAsk=false, db=null, view="home", Q=null, saving=false, dirty=false, saveTimer=null, syncNote="";
 
 function allLists(){return [...BUILTIN,...(S.liste||[])]}
 const passOf=id=>(S.pass||{})[id]||{f:0,d:""};
@@ -337,6 +337,12 @@ function vProgressi(){const days=[];for(let i=13;i>=0;i--){const d=addDays(today
     <textarea id="restoretext" placeholder="Incolla qui un codice per ripristinare i progressi" style="min-height:90px"></textarea>
     <button id="restore">Ripristina dal codice</button>
   </section>
+  <section class="sheet"><p class="label">Ricomincia da zero</p>
+    <p class="small muted">Cancella tutti i progressi su questo telefono e riparte dal Kapitel 1, fase 1. Le liste di parole restano.</p>
+    ${resetAsk?`<p style="color:var(--bad);font-weight:700">Sicuro? Non si può annullare.</p>
+      <div class="two"><button id="resetno">No, annulla</button><button id="resetyes" style="border-color:var(--bad);color:var(--bad)">Sì, cancella tutto</button></div>`
+      :`<button id="reset">Azzera i progressi</button>`}
+  </section>
   <p class="small muted">${esc(syncNote)}</p>`)}
 
 function vListe(){const ci=currentIdx();
@@ -433,7 +439,10 @@ function render(){const app=$("#app");
 
 /* ---------- eventi ---------- */
 document.addEventListener("click",e=>{const t=e.target.closest("button,#flip");if(!t)return;
-  if(t.dataset.go){view=t.dataset.go;render();return}
+  if(t.dataset.go){view=t.dataset.go;resetAsk=false;render();return}
+  if(t.id==="reset"){resetAsk=true;render();return}
+  if(t.id==="resetno"){resetAsk=false;render();return}
+  if(t.id==="resetyes"){const keep={liste:S.liste,direzione:S.direzione,modo:S.modo};S=Object.assign(blank(),keep);resetAsk=false;save();view="home";render();toast("Progressi azzerati: si riparte dal Kapitel 1");return}
   if(t.dataset.dir){S.direzione=t.dataset.dir;save();render();return}
   if(t.dataset.modo){S.modo=t.dataset.modo;save();render();return}
   if(t.id==="start"){startQuiz("sera");return}
