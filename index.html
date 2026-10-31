@@ -158,7 +158,7 @@ const PER_NIGHT=20, OLD_PER_NIGHT=3, EXTRA_STEP=5;
 const extraToday=()=>((S.extra||{})[today()]||0);
 const newPerNight=()=>PER_NIGHT-(currentIdx()>0?OLD_PER_NIGHT:0)+extraToday();
 const DOC_PATH="progressi/gabri";
-const LS_KEY="vokabeln-gabri-v2"; // v2: azzerato il 2026-10-31 dopo i test di Karim
+const LS_KEY="vokabeln-gabri-v3"; // v3: azzerato il 2026-10-31 (nuova logica a round)
 
 /* ---------- utility ---------- */
 const $=s=>document.querySelector(s);
