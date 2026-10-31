@@ -54,6 +54,7 @@ p{margin:0}
 .small{font-size:.88rem}
 .label{font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700}
 .tagline{font-family:var(--display);font-weight:600;font-size:1.1rem;color:var(--pen);margin-top:4px}
+.rounds{margin:0;padding-left:1.3em;display:grid;gap:2px}
 .phases{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}.phases span{height:6px;border-radius:99px;background:var(--grid)}.phases .done{background:var(--ok)}.phases .now{background:var(--pen)}
 header.top{display:flex;align-items:center;justify-content:space-between;gap:12px}
 nav.tabs{display:flex;gap:6px;background:var(--sheet);border:1px solid var(--line);border-radius:14px;padding:4px}
@@ -139,12 +140,13 @@ const BUILTIN = [
 ];
 
 const INTERVALS=[0,1,2,4,7,15,30]; // giorni per scatola 0..6
-/* Regole di Karim. Ogni capitolo si fa in 4 fasi, ognuna su tutte le parole:
+/* Regole di Karim. Ogni sera 20 parole (dal capitolo 2: 17 del capitolo + 3 del precedente).
+   Le stesse parole passano, nella stessa sera, da più round:
    1 tedesco → italiano, scelta tra 5   2 italiano → tedesco, scelta tra 5
    3 tedesco → scrivere in italiano    4 italiano → scrivere in tedesco
-   12 parole a sera della fase in corso. Finita la fase 4 si passa al capitolo
-   successivo; dal capitolo 2 in poi ogni sera anche 3 parole a caso del
-   capitolo precedente (scritte in tedesco). */
+   e solo per i nomi: 5 nome senza articolo → scrivere l'articolo, 6 italiano → articolo + nome.
+   Una parola è imparata se non la sbaglia mai al primo colpo in nessun round;
+   altrimenti torna per prima la sera dopo. Imparate tutte, si passa al capitolo successivo. */
 const FASI={1:{mode:"scelta",dir:"de-it",nome:"Tedesco → italiano, scegli tra 5"},2:{mode:"scelta",dir:"it-de",nome:"Italiano → tedesco, scegli tra 5"},
   3:{mode:"scrivi",dir:"de-it",nome:"Tedesco → scrivi in italiano"},4:{mode:"scrivi",dir:"it-de",nome:"Italiano → scrivi in tedesco"},
   5:{mode:"articolo",dir:"de-it",nome:"Solo nomi: scrivi l'articolo (der, die, das)"},6:{mode:"scrivi",dir:"it-de",nome:"Solo nomi: italiano → tedesco con l'articolo giusto"}};
@@ -152,8 +154,7 @@ const FASI={1:{mode:"scelta",dir:"de-it",nome:"Tedesco → italiano, scegli tra 
    6 vede l'italiano e scrive articolo + nome. */
 const maxPh=w=>/^(der|die|das)\s/i.test(w.de)?6:4;
 const PER_NIGHT=20, OLD_PER_NIGHT=3, EXTRA_STEP=5;
-/* 20 parole a sera in tutto (dal capitolo 2: 17 nuove + 3 del precedente).
-   Finite le 20 l'app chiede se ne vuole altre 5 o se si continua domani. */
+/* Finite le 20 l'app chiede se ne vuole altre 5 (con tutti i round) o se si continua domani. */
 const extraToday=()=>((S.extra||{})[today()]||0);
 const newPerNight=()=>PER_NIGHT-(currentIdx()>0?OLD_PER_NIGHT:0)+extraToday();
 const DOC_PATH="progressi/gabri";
@@ -177,11 +178,9 @@ let S=Object.assign(blank(),lsGet()||{});
 let resetAsk=false, db=null, view="home", Q=null, saving=false, dirty=false, saveTimer=null, syncNote="";
 
 function allLists(){return [...BUILTIN,...(S.liste||[])]}
-const passOf=id=>(S.pass||{})[id]||{f:0,d:""};
-function phaseOf(l){const todo=wordsOf(l).filter(w=>passOf(w.id).f<maxPh(w));return todo.length?1+Math.min(...todo.map(w=>passOf(w.id).f)):6}
-function chapterDone(l){return wordsOf(l).every(w=>passOf(w.id).f>=maxPh(w))}
-function phaseWords(l){const p=phaseOf(l);return wordsOf(l).filter(w=>maxPh(w)>=p)}
-function phaseCount(l){const p=phaseOf(l);return phaseWords(l).filter(w=>passOf(w.id).f>=p).length}
+const isDone=id=>!!(S.done||{})[id];
+function chapterDone(l){return wordsOf(l).every(w=>isDone(w.id))}
+function phaseCount(l){return wordsOf(l).filter(w=>isDone(w.id)).length}
 function currentIdx(){const L=allLists();const i=L.findIndex(l=>!chapterDone(l));return i<0?L.length-1:i}
 function currentList(){return allLists()[currentIdx()]}
 function activeIds(){return allLists().slice(0,currentIdx()+1).map(l=>l.id)}
@@ -214,22 +213,18 @@ async function connect(){
 
 /* ---------- ripetizione a scatole (Leitner) ---------- */
 function dueToday(){const t=today();return activeWords().filter(w=>{const c=cardOf(w.id);return c&&c.box>0&&c.due<=t})}
-/* Una parola supera la fase solo se la indovina al primo colpo.
-   Quelle sbagliate tornano per prime la sera dopo; il resto fino a 15 sono parole nuove. */
 const tentOf=id=>(S.tent||{})[id]||null;
-function newWords(){const l=currentList(),p=phaseOf(l),t=today();
-  const todo=phaseWords(l).filter(w=>passOf(w.id).f<p&&!(tentOf(w.id)&&tentOf(w.id).d===t));
-  const wrong=todo.filter(w=>{const x=tentOf(w.id);return x&&x.p===p&&!x.ok});
-  return [...wrong,...todo.filter(w=>!wrong.includes(w))]}
-function wrongPending(){const l=currentList(),p=phaseOf(l);return wordsOf(l).filter(w=>{const x=tentOf(w.id);return passOf(w.id).f<p&&x&&x.p===p&&!x.ok}).length}
+const isWrong=id=>!!(S.wrong||{})[id];
+function newWords(){const t=today();
+  const todo=wordsOf(currentList()).filter(w=>!isDone(w.id)&&!(tentOf(w.id)&&tentOf(w.id).d===t));
+  return [...todo.filter(w=>isWrong(w.id)),...todo.filter(w=>!isWrong(w.id))]}
+function wrongPending(){return newWords().filter(w=>isWrong(w.id)).length}
 function attemptedToday(){const t=today();return Object.values(S.tent||{}).filter(x=>x.d===t).length}
-function passedToday(){const t=today();return Object.values(S.pass||{}).filter(x=>x.d===t).length}
 function newLeftToday(){return Math.max(0,Math.min(newPerNight()-attemptedToday(),newWords().length))}
 function oldPool(){const i=currentIdx();return i>0?wordsOf(allLists()[i-1]):[]}
 /* Le 3 del capitolo precedente: prima quelle sbagliate più volte, poi a caso. */
 function pickHard(pool,n){const ko=w=>(cardOf(w.id)||{}).ko||0;
   return shuffle(pool).sort((a,b)=>ko(b)-ko(a)).slice(0,n)}
-function markPass(w,phase){if(!phase)return;S.pass=S.pass||{};const x=passOf(w.id);if(x.f<phase){S.pass[w.id]={f:phase,d:today()};save()}}
 const sessionDone=()=>!!(S.fatto||{})[today()];
 function learned(words){return words.filter(w=>{const c=cardOf(w.id);return c&&c.box>=4}).length}
 function grade(w,correct){const t=today();const c=S.cards[w.id]||{box:0,due:t,ok:0,ko:0,intro:t};
@@ -274,7 +269,7 @@ function shell(inner){return `
   </nav>${inner}`}
 
 function vHome(){const cur=currentList(),ci=currentIdx(),L=allLists();const cw=wordsOf(cur);
-  const ph=phaseOf(cur),studied=phaseCount(cur),ptot=phaseWords(cur).length;const nNew=newLeftToday();
+  const studied=phaseCount(cur);const nNew=newLeftToday();
   const nOld=sessionDone()?0:Math.min(OLD_PER_NIGHT,oldPool().length);const total=nNew+nOld;
   const due=dueToday();const words=activeWords();const dir=S.direzione,modo=S.modo;
   const allDone=ci===L.length-1&&chapterDone(cur);
@@ -282,14 +277,13 @@ function vHome(){const cur=currentList(),ci=currentIdx(),L=allLists();const cw=w
   return shell(`
   <section class="sheet pop">
     <p class="label">${esc(cur.nome)}</p>
-    <h3>Fase ${ph} di 6 · ${FASI[ph].nome}</h3>
-    <div class="phases" aria-hidden="true">${[1,2,3,4,5,6].map(i=>`<span class="${i<ph||allDone?"done":i===ph?"now":""}"></span>`).join("")}</div>
-    <div class="bar" role="img" aria-label="${studied} di ${ptot} parole fatte in questa fase"><span style="width:${studied/ptot*100}%;background:var(--ok)"></span></div>
-    <p class="small muted">${allDone?"Tutti i capitoli completati!":`${studied} di ${ptot} parole fatte in questa fase · ${ph<6?`poi la fase ${ph+1}`:`poi si passa al ${esc((L[ci+1]||cur).nome.split(" · ")[0])}`}`}</p>
+    <div class="bar" role="img" aria-label="${studied} di ${cw.length} parole imparate"><span style="width:${studied/cw.length*100}%;background:var(--ok)"></span></div>
+    <p class="small muted">${allDone?"Tutti i capitoli completati!":`${studied} di ${cw.length} parole imparate · poi si passa al ${esc((L[ci+1]||cur).nome.split(" · ")[0])}`}</p>
     <p class="label">Studio di stasera</p>
-    ${total>0?`<h2>${nNew?`${nNew} parole`:""}${nNew&&nOld?" + ":""}${nOld?`${nOld} di ripasso`:""}</h2>
+    ${total>0?`<h2>${nNew?`${nNew} parole`:""}${nNew&&nOld?" + ":""}${nOld?`${nOld} di ripasso`:""} in 6 round</h2>
       ${wrongPending()?`<p class="small" style="color:var(--margin);font-weight:700">Si parte dalle ${Math.min(wrongPending(),nNew)} sbagliate l'ultima volta.</p>`:""}
-      <p class="muted">${nOld?`Le ${nOld} di ripasso sono prese a caso dal ${esc(prevName)}: le vedi in italiano e le scrivi in tedesco.`:FASI[ph].mode==="scelta"?"Per ogni parola scegli la risposta giusta tra 5.":FASI[ph].mode==="articolo"?"Vedi il nome senza articolo: scrivi der, die o das.":"Per ogni parola scrivi la risposta."}</p>`
+      <ol class="small muted rounds">${[1,2,3,4,5,6].map(i=>`<li>${esc(FASI[i].nome)}</li>`).join("")}</ol>
+      ${nOld?`<p class="small muted">Le ${nOld} di ripasso sono prese dal ${esc(prevName)}, prima quelle sbagliate più spesso.</p>`:""}`
      :`<h2>Fatto per stasera, bravo!</h2>
       <p class="muted">${allDone?"Hai studiato tutte le parole. Continua con i ripassi.":"Domani sera arrivano le prossime."}</p>`}
     ${total>0?`<button class="primary big" id="start">Inizia</button>`:newWords().length?`<button class="primary big" id="more">Ne voglio fare ancora ${EXTRA_STEP}</button>`:""}
@@ -356,10 +350,10 @@ function vProgressi(){const days=[];for(let i=13;i>=0;i--){const d=addDays(today
 function vListe(){const ci=currentIdx();
   return shell(`
   <section class="sheet"><p class="label">Capitoli, in ordine</p>
-    <p class="small muted">Ogni capitolo ha 6 fasi: 1 tedesco → italiano a scelta, 2 italiano → tedesco a scelta, 3 scrivi in italiano, 4 scrivi in tedesco, poi solo per i nomi 5 scrivi l'articolo e 6 scrivi il nome con l'articolo giusto. Finita la fase 6 si apre il capitolo successivo.</p>
-    ${allLists().map((l,i)=>{const ws=wordsOf(l),st=phaseCount(l),ph=phaseOf(l);const stato=chapterDone(l)?"Completato":i===ci?"In corso":"Bloccato";
+    <p class="small muted">Ogni sera le stesse parole passano da 6 round: 1 tedesco → italiano a scelta, 2 italiano → tedesco a scelta, 3 scrivi in italiano, 4 scrivi in tedesco, poi solo per i nomi 5 scrivi l'articolo e 6 scrivi il nome con l'articolo. Una parola è imparata se non la sbagli mai al primo colpo. Imparate tutte, si apre il capitolo successivo.</p>
+    ${allLists().map((l,i)=>{const ws=wordsOf(l),st=phaseCount(l);const stato=chapterDone(l)?"Completato":i===ci?"In corso":"Bloccato";
       return `<div class="listitem"><span class="chip" style="min-height:0;padding:4px 10px;font-size:.8rem;${stato==="Completato"?"border-color:var(--ok);color:var(--ok)":stato==="In corso"?"border-color:var(--pen);color:var(--pen)":"color:var(--muted)"}">${stato}</span>
-      <div class="grow"><b>${esc(l.nome)}</b><br><span class="small muted">${stato==="Completato"?`${ws.length} parole, tutte le fasi`:stato==="In corso"?`Fase ${ph} di 6 · ${st} di ${phaseWords(l).length} parole`:`${ws.length} parole`}</span></div>
+      <div class="grow"><b>${esc(l.nome)}</b><br><span class="small muted">${stato==="Completato"?`${ws.length} parole imparate`:stato==="In corso"?`${st} di ${ws.length} parole imparate`:`${ws.length} parole`}</span></div>
       ${BUILTIN.includes(l)?"":`<button class="ghost" data-del="${l.id}">Elimina</button>`}</div>`}).join("")}
   </section>
   <section class="sheet"><p class="label">Aggiungi una lista</p>
@@ -373,11 +367,18 @@ function vListe(){const ci=currentIdx();
 function startQuiz(kind){let items;
   if(kind==="libero"){const seen=activeWords().filter(w=>cardOf(w.id));items=shuffle(seen).slice(0,10).map(w=>({w}))}
   else if(kind==="ripasso"){items=shuffle(dueToday()).slice(0,20).map(w=>({w}))}
-  else{const p=phaseOf(currentList()),F=FASI[p];const nw=newWords().slice(0,newLeftToday());
-    const old=sessionDone()?[]:pickHard(oldPool(),OLD_PER_NIGHT);
-    items=[...nw.map(w=>({w,mode:F.mode,dir:F.dir,phase:p})),...old.map(w=>({w,mode:"scrivi",dir:"it-de"}))]}
+  else{const nw=newWords().slice(0,newLeftToday());
+    const old=sessionDone()?[]:pickHard(oldPool(),OLD_PER_NIGHT);const batch=[...nw,...old];if(!batch.length)return;
+    const rounds=[1,2,3,4,5,6].filter(rd=>batch.some(w=>maxPh(w)>=rd));
+    Q={kind,batch,rounds,ri:0,bad:new Set(),ok:0,errs:[],cur:null,free:false};startRound();return}
   if(!items.length)return;
   Q={queue:items.map(e=>({...e,tries:0})),done:0,total:items.length,ok:0,errs:[],cur:null,state:"ask",free:kind!=="sera",kind};nextQ()}
+function startRound(){const rd=Q.rounds[Q.ri],F=FASI[rd];
+  const items=shuffle(Q.batch.filter(w=>maxPh(w)>=rd)).map(w=>({w,mode:F.mode,dir:F.dir,phase:rd,tries:0}));
+  Q.queue=items;Q.total=items.length;Q.done=0;nextQ()}
+function finishSera(){const t=today();S.tent=Object.assign({},S.tent);S.wrong=Object.assign({},S.wrong);S.done=Object.assign({},S.done);
+  for(const w of Q.batch){S.tent[w.id]={d:t};if(Q.bad.has(w.id))S.wrong[w.id]=true;else{delete S.wrong[w.id];S.done[w.id]=S.done[w.id]||t}}
+  S.fatto=Object.assign({},S.fatto,{[t]:true});save()}
 function pickMode(entry){if(entry.mode)return entry.mode;const m=S.modo;const c=cardOf(entry.w.id);
   if(m!=="misto")return m;
   if(!c||c.box<=1)return entry.tries?"scelta":"carte";
@@ -401,7 +402,9 @@ function trickyPool(w,pool,key){const k=wkind(w.de),a=artOf(w.de),ia=itArt(w.it)
     if(o.replace(/^(der|die|das|il|lo|la|l'|i|gli|le)\s?/,"")[0]===ans.replace(/^(der|die|das|il|lo|la|l'|i|gli|le)\s?/,"")[0])sc+=1.5;
     return sc};
   return pool.map(x=>[x,score(x)]).sort((p,q)=>q[1]-p[1]).map(p=>p[0])}
-function nextQ(){if(!Q.queue.length){if(Q.kind==="sera"){S.fatto=Object.assign({},S.fatto,{[today()]:true});save()}view="fine";render();return}
+function nextQ(){if(!Q.queue.length){
+    if(Q.kind==="sera"&&Q.ri<Q.rounds.length-1){Q.ri++;view="round";render();return}
+    if(Q.kind==="sera")finishSera();view="fine";render();return}
   const e=Q.queue.shift();Q.cur={...e,mode:pickMode(e),dir:e.dir||pickDir(),answer:"",result:null,flipped:false};
   if(Q.cur.mode==="scelta"){const pool=allWords().filter(x=>x.id!==e.w.id);const key=Q.cur.dir==="it-de"?"de":"it";
     const pkey=key==="de"?"it":"de";const pn=variants(e.w[pkey]).join("|");
@@ -409,8 +412,7 @@ function nextQ(){if(!Q.queue.length){if(Q.kind==="sera"){S.fatto=Object.assign({
     Q.cur.opts=shuffle(opts)}
   view="quiz";render()}
 function answer(correct,extra){const c=Q.cur;c.result=correct?"ok":"bad";c.extra=extra||"";
-  if(c.tries===0){grade(c.w,correct);if(correct)Q.ok++;else Q.errs.push(c.w);
-    if(c.phase){S.tent=Object.assign({},S.tent,{[c.w.id]:{p:c.phase,d:today(),ok:correct}});if(correct)markPass(c.w,c.phase);save()}}
+  if(c.tries===0){grade(c.w,correct);if(correct)Q.ok++;else{Q.errs.push(c.w);if(Q.bad)Q.bad.add(c.w.id)}}
   else if(!correct&&S.cards[c.w.id]){S.cards[c.w.id].ko++;save()}
   if(!correct)Q.queue.splice(Math.min(Q.queue.length,3),0,{w:c.w,mode:c.mode,dir:c.dir,phase:c.phase,tries:c.tries+1});else Q.done++;
   render()}
@@ -438,7 +440,7 @@ function vQuiz(){const c=Q.cur,w=c.w;const askDe=c.dir==="de-it";const art=c.mod
     fb=`<div class="feedback ${c.result} pop"><span>${c.extra||m}</span><span class="ans">${deHtml(w.de)} = ${esc(w.it)}</span></div>
       <button class="primary big" id="next">${Q.queue.length?"Avanti":"Fine"}</button>`}
   return `
-  <div class="progress"><button class="ghost" id="quit" aria-label="Esci dal quiz">✕ Esci</button><div class="bar"><span style="width:${pct}%;background:var(--ok)"></span></div><span class="small muted" style="font-variant-numeric:tabular-nums">${Q.done}/${Q.total}</span></div>
+  <div class="progress"><button class="ghost" id="quit" aria-label="Esci dal quiz">✕ Esci</button><div class="bar"><span style="width:${pct}%;background:var(--ok)"></span></div><span class="small muted" style="font-variant-numeric:tabular-nums">${Q.rounds?`R${Q.ri+1}/${Q.rounds.length} · `:""}${Q.done}/${Q.total}</span></div>
   <section class="sheet pop">
     <div class="prompt"><p class="label">${art?"Qual è l'articolo?":askDe?"Cosa vuol dire?":"Come si dice in tedesco?"}</p>
       <p class="word">${art?`<span class="muted">___</span> ${esc(prompt)}`:askDe?deHtml(prompt):esc(prompt)}</p>
@@ -447,7 +449,16 @@ function vQuiz(){const c=Q.cur,w=c.w;const askDe=c.dir==="de-it";const art=c.mod
     ${body}${fb}
   </section>`}
 
-function vFine(){const t=Q.total,ok=Q.ok;const pct=t?Math.round(ok/t*100):0;
+function vRound(){const rd=Q.rounds[Q.ri],F=FASI[rd];const n=Q.batch.filter(w=>maxPh(w)>=rd).length;
+  return `
+  <section class="sheet pop">
+    <p class="label">Round ${Q.ri} di ${Q.rounds.length} finito${Q.bad.size?"":" senza errori"}!</p>
+    <h2>Round ${Q.ri+1} · ${esc(F.nome)}</h2>
+    <p class="muted">${n} parole${rd>=5?", solo i nomi":", le stesse di prima"}.</p>
+    <div class="phases" aria-hidden="true">${Q.rounds.map((x,i)=>`<span class="${i<Q.ri?"done":i===Q.ri?"now":""}"></span>`).join("")}</div>
+    <button class="primary big" id="nextround">Inizia il round ${Q.ri+1}</button>
+  </section>`}
+function vFine(){if(Q.kind==="sera")return vFineSera();const t=Q.total,ok=Q.ok;const pct=t?Math.round(ok/t*100):0;
   const errs=[...new Map(Q.errs.map(w=>[w.id,w])).values()];
   return `
   <section class="sheet pop" style="text-align:left">
@@ -460,8 +471,20 @@ function vFine(){const t=Q.total,ok=Q.ok;const pct=t?Math.round(ok/t*100):0;
       :`<button class="primary big" id="home">Torna alla pagina iniziale</button>`}
   </section>`}
 
+function vFineSera(){const n=Q.batch.length,bad=Q.batch.filter(w=>Q.bad.has(w.id));const good=n-bad.length;
+  return `
+  <section class="sheet pop" style="text-align:left">
+    <p class="confetti">${!bad.length?"Toll!":good>=n/2?"Gut gemacht!":"Weiter so!"}</p>
+    <h2>${good} su ${n} parole imparate</h2>
+    <p class="muted">${bad.length?`Le ${bad.length} sbagliate tornano per prime domani sera.`:"Nessun errore in tutti i round!"} Sei a ${streak()} ${streak()===1?"sera":"sere"} di fila.</p>
+    ${bad.length?`<p class="label">Da rifare domani</p>${bad.map(w=>`<div class="listitem"><div class="grow"><b>${deHtml(w.de)}</b><p class="small muted">${esc(w.it)}</p></div></div>`).join("")}`:""}
+    ${newWords().length?`<h3>Ne vuoi ancora o andiamo a domani sera?</h3>
+      <div class="two"><button class="primary" id="more">Sì, altre ${EXTRA_STEP}</button><button id="home">A domani sera</button></div>`
+      :`<button class="primary big" id="home">Torna alla pagina iniziale</button>`}
+  </section>`}
+
 function render(){const app=$("#app");
-  app.innerHTML=view==="quiz"?vQuiz():view==="fine"?vFine():view==="progressi"?vProgressi():view==="liste"?vListe():vHome();
+  app.innerHTML=view==="quiz"?vQuiz():view==="round"?vRound():view==="fine"?vFine():view==="progressi"?vProgressi():view==="liste"?vListe():vHome();
   if(view==="quiz"){const inp=$("#typed");if(inp&&!inp.disabled)inp.focus();else{const n=$("#next");if(n)n.focus()}}
   window.scrollTo(0,0)}
 
@@ -486,6 +509,7 @@ document.addEventListener("click",e=>{const t=e.target.closest("button,#flip");i
   if(t.id==="home"){view="home";render();return}
   if(t.id==="quit"){view="home";Q=null;render();return}
   if(t.id==="next"){nextQ();return}
+  if(t.id==="nextround"){startRound();return}
   if(t.id==="say"){speak(Q.cur.w.de);return}
   if(t.id==="flip"){if(!Q.cur.flipped){Q.cur.flipped=true;if(Q.cur.dir==="it-de")speak(Q.cur.w.de);render()}return}
   if(t.id==="si"){answer(true);return}
