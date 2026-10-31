@@ -148,9 +148,9 @@ const FASI={1:{mode:"scelta",dir:"de-it",nome:"Tedesco → italiano, scegli tra 
 /* Fasi 5 e 6 solo per i nomi con articolo: 5 vede il nome senza articolo e scrive l'articolo,
    6 vede l'italiano e scrive articolo + nome. */
 const maxPh=w=>/^(der|die|das)\s/i.test(w.de)?6:4;
-const PER_NIGHT=15, OLD_PER_NIGHT=3, EXTRA_STEP=5;
-/* 15 parole a sera in tutto (dal capitolo 2: 12 nuove + 3 del precedente).
-   Finite le 15 l'app chiede se ne vuole altre 5 o se si continua domani. */
+const PER_NIGHT=20, OLD_PER_NIGHT=3, EXTRA_STEP=5;
+/* 20 parole a sera in tutto (dal capitolo 2: 17 nuove + 3 del precedente).
+   Finite le 20 l'app chiede se ne vuole altre 5 o se si continua domani. */
 const extraToday=()=>((S.extra||{})[today()]||0);
 const newPerNight=()=>PER_NIGHT-(currentIdx()>0?OLD_PER_NIGHT:0)+extraToday();
 const DOC_PATH="progressi/gabri";
