@@ -4,6 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#2747d6">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Vokabeln">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}[hidden]{display:none!important}</style>
 </head>
 <body>
@@ -128,8 +135,11 @@ const BUILTIN = [
 ];
 
 const INTERVALS=[0,1,2,4,7,15,30]; // giorni per scatola 0..6
-const MAX_PER_NIGHT=30;
-const newPerNight=()=>S.nuove||8;
+/* Regole di Karim: 12 parole nuove a sera, capitolo per capitolo in ordine.
+   Un capitolo è completo quando tutte le sue parole sono state studiate;
+   allora si passa al successivo. Ogni sera, oltre alle 12 nuove,
+   3 parole a caso del capitolo precedente. */
+const NEW_PER_NIGHT=12, OLD_PER_NIGHT=3;
 const DOC_PATH="progressi/gabri";
 const LS_KEY="vokabeln-gabri-v1";
 
@@ -146,14 +156,15 @@ function lsGet(){try{return JSON.parse(localStorage.getItem(LS_KEY)||"null")}cat
 function lsSet(v){try{localStorage.setItem(LS_KEY,JSON.stringify(v))}catch(e){}}
 
 /* ---------- stato ---------- */
-function blank(){return {cards:{},liste:[],attive:null,giorni:{},direzione:"it-de",modo:"misto",nuove:8,updatedAt:0}}
+function blank(){return {cards:{},liste:[],giorni:{},fatto:{},direzione:"it-de",modo:"misto",updatedAt:0}}
 let S=Object.assign(blank(),lsGet()||{});
 let db=null, view="home", Q=null, saving=false, dirty=false, saveTimer=null, syncNote="";
 
 function allLists(){return [...BUILTIN,...(S.liste||[])]}
-function activeIds(){const ids=allLists().map(l=>l.id);
-  if(!S.attive)return ["k1"]; // di partenza solo il Kapitel 1, come in classe
-  return S.attive.filter(id=>ids.includes(id))}
+function chapterDone(l){return wordsOf(l).every(w=>cardOf(w.id))}
+function currentIdx(){const L=allLists();const i=L.findIndex(l=>!chapterDone(l));return i<0?L.length-1:i}
+function currentList(){return allLists()[currentIdx()]}
+function activeIds(){return allLists().slice(0,currentIdx()+1).map(l=>l.id)}
 function wordsOf(list){return list.parole.map(([de,it])=>({id:cardId(de,it),de,it,lista:list.id}))}
 function activeWords(){const act=new Set(activeIds());const seen=new Set();const out=[];
   for(const l of allLists()) if(act.has(l.id)) for(const w of wordsOf(l)) if(!seen.has(w.id)){seen.add(w.id);out.push(w)}
@@ -183,9 +194,14 @@ async function connect(){
 
 /* ---------- ripetizione a scatole (Leitner) ---------- */
 function dueToday(){const t=today();return activeWords().filter(w=>{const c=cardOf(w.id);return c&&c.box>0&&c.due<=t})}
-function newWords(){return activeWords().filter(w=>!cardOf(w.id))}
+function newWords(){return wordsOf(currentList()).filter(w=>!cardOf(w.id))}
+function introducedToday(){const t=today();return Object.values(S.cards).filter(c=>c.intro===t).length}
+function newLeftToday(){return Math.max(0,Math.min(NEW_PER_NIGHT-introducedToday(),newWords().length))}
+function oldPool(){const i=currentIdx(),L=allLists(),t=today();
+  const src=i>0?wordsOf(L[i-1]):wordsOf(L[i]);return src.filter(w=>{const c=cardOf(w.id);return c&&c.intro!==t})}
+const sessionDone=()=>!!(S.fatto||{})[today()];
 function learned(words){return words.filter(w=>{const c=cardOf(w.id);return c&&c.box>=4}).length}
-function grade(w,correct){const t=today();const c=S.cards[w.id]||{box:0,due:t,ok:0,ko:0};
+function grade(w,correct){const t=today();const c=S.cards[w.id]||{box:0,due:t,ok:0,ko:0,intro:t};
   if(correct){c.box=Math.min(c.box+1,INTERVALS.length-1);c.ok++}else{c.box=1;c.ko++}
   c.due=addDays(t,correct?INTERVALS[c.box]:1);c.last=t;S.cards[w.id]=c;
   const g=S.giorni[t]||{n:0,ok:0};g.n++;if(correct)g.ok++;S.giorni[t]=g;save()}
@@ -226,19 +242,25 @@ function shell(inner){return `
     <button data-go="liste" ${view==="liste"?'aria-current="page"':""}>Liste</button>
   </nav>${inner}`}
 
-function vHome(){const due=dueToday(),nw=newWords();const nNew=Math.min(nw.length,newPerNight());
-  const total=Math.min(due.length+nNew,MAX_PER_NIGHT);const doneToday=(S.giorni[today()]||{}).n||0;
-  const words=activeWords();const lists=allLists().filter(l=>activeIds().includes(l.id));
-  const dir=S.direzione,modo=S.modo;
+function vHome(){const cur=currentList(),ci=currentIdx(),L=allLists();const cw=wordsOf(cur);
+  const studied=cw.filter(w=>cardOf(w.id)).length;const nNew=newLeftToday();
+  const nOld=sessionDone()?0:Math.min(OLD_PER_NIGHT,oldPool().length);const total=nNew+nOld;
+  const due=dueToday();const words=activeWords();const dir=S.direzione,modo=S.modo;
+  const allDone=ci===L.length-1&&chapterDone(cur);
+  const prevName=ci>0?L[ci-1].nome.split(" · ")[0]:cur.nome.split(" · ")[0];
   return shell(`
   <section class="sheet pop">
+    <p class="label">${esc(cur.nome)}</p>
+    <div class="bar" role="img" aria-label="${studied} di ${cw.length} parole studiate"><span style="width:${studied/cw.length*100}%;background:var(--ok)"></span></div>
+    <p class="small muted">${studied} di ${cw.length} parole studiate${allDone?" · tutti i capitoli completati!":` · finito questo capitolo si passa al ${esc((L[ci+1]||cur).nome.split(" · ")[0])}`}</p>
     <p class="label">Studio di stasera</p>
-    ${total>0?`<h2>${total} parole da ripassare</h2>
-      <p class="muted">${due.length} da ripassare · ${nNew} nuove${doneToday?` · oggi ne hai già fatte ${doneToday}`:""}</p>`
-     :`<h2>${words.length?"Tutto fatto per oggi!":"Nessuna lista attiva"}</h2>
-      <p class="muted">${words.length?"Le parole tornano quando è il momento giusto. Puoi comunque fare un ripasso libero.":"Vai su Liste e scegli cosa studiare."}</p>`}
-    <div class="row"><span class="label grow">Liste attive</span></div>
-    <p class="small">${lists.map(l=>esc(l.nome)).join(" · ")||"—"}</p>
+    ${total>0?`<h2>${nNew?`${nNew} parole nuove`:""}${nNew&&nOld?" + ":""}${nOld?`${nOld} di ripasso`:""}</h2>
+      <p class="muted">${nOld?`Le parole di ripasso sono prese a caso dal ${esc(prevName)}.`:"Inizia dalle carte: guarda la parola, pensa alla risposta, poi girala."}</p>`
+     :`<h2>Fatto per stasera, bravo!</h2>
+      <p class="muted">${allDone?"Hai studiato tutte le parole. Continua con i ripassi.":"Domani sera arrivano le prossime 12 parole."}</p>`}
+    ${total>0?`<button class="primary big" id="start">Inizia</button>`:""}
+    ${due.length?`<button class="big" id="review">Ripassa le parole da rinforzare (${due.length})</button>`:""}
+    ${words.some(w=>cardOf(w.id))?`<button class="big" id="free">Ripasso libero (10 parole già viste)</button>`:""}
     <div class="row"><span class="label">Domanda in</span></div>
     <div class="chips" role="group" aria-label="Direzione">
       ${[["it-de","Italiano → Tedesco"],["de-it","Tedesco → Italiano"],["mix","Misto"]].map(([k,t])=>`<button class="chip" data-dir="${k}" aria-pressed="${dir===k}">${t}</button>`).join("")}
@@ -247,12 +269,6 @@ function vHome(){const due=dueToday(),nw=newWords();const nNew=Math.min(nw.lengt
     <div class="chips" role="group" aria-label="Tipo di quiz">
       ${[["misto","Misto"],["scelta","Scelta multipla"],["scrivi","Scrivi"],["carte","Carte"]].map(([k,t])=>`<button class="chip" data-modo="${k}" aria-pressed="${modo===k}">${t}</button>`).join("")}
     </div>
-    <div class="row"><span class="label">Parole nuove a sera</span></div>
-    <div class="chips" role="group" aria-label="Parole nuove a sera">
-      ${[5,8,12,15].map(n=>`<button class="chip" data-nuove="${n}" aria-pressed="${newPerNight()===n}">${n}</button>`).join("")}
-    </div>
-    ${total>0?`<button class="primary big" id="start">Inizia</button>`:""}
-    ${words.length?`<button class="${total>0?"":"primary "}big" id="free">Ripasso libero (10 parole già viste)</button>`:""}
   </section>
   <section class="sheet">
     <div class="stats">
@@ -296,12 +312,14 @@ function vProgressi(){const days=[];for(let i=13;i>=0;i--){const d=addDays(today
   </section>
   <p class="small muted">${esc(syncNote)}</p>`)}
 
-function vListe(){const act=new Set(activeIds());
+function vListe(){const ci=currentIdx();
   return shell(`
-  <section class="sheet"><p class="label">Cosa studiare</p>
-    ${allLists().map(l=>`<div class="listitem"><input type="checkbox" id="l-${l.id}" data-toggle="${l.id}" ${act.has(l.id)?"checked":""} style="width:22px;height:22px">
-      <label class="grow" for="l-${l.id}"><b>${esc(l.nome)}</b><br><span class="small muted">${l.parole.length} parole</span></label>
-      ${l.esempio||BUILTIN.includes(l)?"":`<button class="ghost" data-del="${l.id}">Elimina</button>`}</div>`).join("")}
+  <section class="sheet"><p class="label">Capitoli, in ordine</p>
+    <p class="small muted">Si va avanti un capitolo alla volta: il successivo si apre quando hai studiato tutte le parole di quello in corso.</p>
+    ${allLists().map((l,i)=>{const ws=wordsOf(l),st=ws.filter(w=>cardOf(w.id)).length;const stato=chapterDone(l)?"Completato":i===ci?"In corso":"Bloccato";
+      return `<div class="listitem"><span class="chip" style="min-height:0;padding:4px 10px;font-size:.8rem;${stato==="Completato"?"border-color:var(--ok);color:var(--ok)":stato==="In corso"?"border-color:var(--pen);color:var(--pen)":"color:var(--muted)"}">${stato}</span>
+      <div class="grow"><b>${esc(l.nome)}</b><br><span class="small muted">${st} di ${ws.length} parole studiate</span></div>
+      ${BUILTIN.includes(l)?"":`<button class="ghost" data-del="${l.id}">Elimina</button>`}</div>`}).join("")}
   </section>
   <section class="sheet"><p class="label">Aggiungi una lista</p>
     <input type="text" id="newname" placeholder="Nome della lista, es. Kapitel 3 · Familie">
@@ -311,17 +329,20 @@ function vListe(){const act=new Set(activeIds());
   </section>`)}
 
 /* ---------- quiz ---------- */
-function startQuiz(free){let items;
-  if(free){const seen=activeWords().filter(w=>cardOf(w.id));items=shuffle(seen.length>=4?seen:activeWords()).slice(0,10)}
-  else{const due=shuffle(dueToday()).sort((a,b)=>cardOf(a.id).box-cardOf(b.id).box);const nw=newWords().slice(0,newPerNight());items=[...due,...nw].slice(0,MAX_PER_NIGHT);items=shuffle(items)}
+function startQuiz(kind){let items;
+  if(kind==="libero"){const seen=activeWords().filter(w=>cardOf(w.id));items=shuffle(seen).slice(0,10)}
+  else if(kind==="ripasso"){items=shuffle(dueToday()).slice(0,20)}
+  else{const nw=newWords().slice(0,newLeftToday());const nwIds=new Set(nw.map(w=>w.id));
+    const old=sessionDone()?[]:shuffle(oldPool().filter(w=>!nwIds.has(w.id))).slice(0,OLD_PER_NIGHT);
+    items=[...nw,...shuffle(old)]}
   if(!items.length)return;
-  Q={queue:items.map(w=>({w,tries:0})),done:0,total:items.length,ok:0,errs:[],cur:null,state:"ask",free};nextQ()}
+  Q={queue:items.map(w=>({w,tries:0})),done:0,total:items.length,ok:0,errs:[],cur:null,state:"ask",free:kind!=="sera",kind};nextQ()}
 function pickMode(entry){const m=S.modo;const c=cardOf(entry.w.id);
   if(m!=="misto")return m;
   if(!c||c.box<=1)return entry.tries?"scelta":"carte";
   return c.box<=2?"scelta":"scrivi"}
 function pickDir(){return S.direzione==="mix"?(Math.random()<.5?"it-de":"de-it"):S.direzione}
-function nextQ(){if(!Q.queue.length){view="fine";render();return}
+function nextQ(){if(!Q.queue.length){if(Q.kind==="sera"){S.fatto=Object.assign({},S.fatto,{[today()]:true});save()}view="fine";render();return}
   const e=Q.queue.shift();Q.cur={...e,mode:pickMode(e),dir:pickDir(),answer:"",result:null,flipped:false};
   if(Q.cur.mode==="scelta"){const pool=allWords().filter(x=>x.id!==e.w.id);const key=Q.cur.dir==="it-de"?"de":"it";
     const pkey=key==="de"?"it":"de";const pn=variants(e.w[pkey]).join("|");
@@ -369,7 +390,7 @@ function vFine(){const t=Q.total,ok=Q.ok;const pct=t?Math.round(ok/t*100):0;
   <section class="sheet pop" style="text-align:left">
     <p class="confetti">${pct>=80?"Toll!":pct>=50?"Gut gemacht!":"Weiter so!"}</p>
     <h2>${ok} su ${t} giuste al primo colpo</h2>
-    <p class="muted">${Q.free?"Ripasso libero completato.":"Studio di stasera completato. Ci vediamo domani sera!"} Sei a ${streak()} ${streak()===1?"sera":"sere"} di fila.</p>
+    <p class="muted">${Q.kind==="sera"?"Studio di stasera completato. Ci vediamo domani sera!":"Ripasso completato."} Sei a ${streak()} ${streak()===1?"sera":"sere"} di fila.</p>
     ${errs.length?`<p class="label">Da ripassare</p>${errs.map(w=>`<div class="listitem"><div class="grow"><b>${deHtml(w.de)}</b><p class="small muted">${esc(w.it)}</p></div></div>`).join("")}`:""}
     <button class="primary big" id="home">Torna alla pagina iniziale</button>
   </section>`}
@@ -380,19 +401,19 @@ function render(){const app=$("#app");
   window.scrollTo(0,0)}
 
 /* ---------- eventi ---------- */
-document.addEventListener("click",e=>{const t=e.target.closest("button,[data-toggle],#flip");if(!t)return;
+document.addEventListener("click",e=>{const t=e.target.closest("button,#flip");if(!t)return;
   if(t.dataset.go){view=t.dataset.go;render();return}
   if(t.dataset.dir){S.direzione=t.dataset.dir;save();render();return}
   if(t.dataset.modo){S.modo=t.dataset.modo;save();render();return}
-  if(t.dataset.nuove){S.nuove=+t.dataset.nuove;save();render();return}
-  if(t.id==="start"){startQuiz(false);return}
+  if(t.id==="start"){startQuiz("sera");return}
+  if(t.id==="review"){startQuiz("ripasso");return}
   if(t.id==="backup"){const code="VOK1:"+btoa(unescape(encodeURIComponent(JSON.stringify(S))));
     const fallback=()=>{const ta=$("#restoretext");ta.value=code;ta.select();toast("Codice selezionato: copialo")};
     try{navigator.clipboard.writeText(code).then(()=>toast("Codice copiato"),fallback)}catch(e){fallback()}return}
   if(t.id==="restore"){const v=$("#restoretext").value.trim();
     try{if(!v.startsWith("VOK1:"))throw 0;const o=JSON.parse(decodeURIComponent(escape(atob(v.slice(5)))));if(!o||typeof o.cards!=="object")throw 0;
       S=Object.assign(blank(),o);save();render();toast("Progressi ripristinati")}catch(e){toast("Codice non valido: incollalo intero, a partire da VOK1:")}return}
-  if(t.id==="free"){startQuiz(true);return}
+  if(t.id==="free"){startQuiz("libero");return}
   if(t.id==="home"){view="home";render();return}
   if(t.id==="quit"){view="home";Q=null;render();return}
   if(t.id==="next"){nextQ();return}
@@ -403,12 +424,11 @@ document.addEventListener("click",e=>{const t=e.target.closest("button,[data-tog
   if(t.id==="dunno"){Q.cur.answer="";answer(false);return}
   if(t.dataset.key){const i=$("#typed");const p=i.selectionStart??i.value.length;i.value=i.value.slice(0,p)+t.dataset.key+i.value.slice(i.selectionEnd??p);Q.cur.answer=i.value;i.focus();i.setSelectionRange(p+1,p+1);return}
   if(t.dataset.opt!==undefined){const i=+t.dataset.opt;Q.cur.picked=i;answer(Q.cur.opts[i].id===Q.cur.w.id);return}
-  if(t.dataset.del){S.liste=S.liste.filter(l=>l.id!==t.dataset.del);if(S.attive)S.attive=S.attive.filter(x=>x!==t.dataset.del);save();render();toast("Lista eliminata");return}
+  if(t.dataset.del){S.liste=S.liste.filter(l=>l.id!==t.dataset.del);save();render();toast("Lista eliminata");return}
   if(t.id==="addlist"){const name=$("#newname").value.trim()||"Lista "+((S.liste||[]).length+1);const parole=parseList($("#newtext").value);
     if(!parole.length){toast("Nessuna parola trovata: scrivi tedesco = italiano, una per riga");return}
-    const id="u-"+Date.now().toString(36);S.liste=[...(S.liste||[]),{id,nome:name,parole}];S.attive=[...activeIds().filter(x=>!allLists().find(l=>l.id===x&&l.esempio)),id];save();render();toast(`Aggiunte ${parole.length} parole`);return}
+    const id="u-"+Date.now().toString(36);S.liste=[...(S.liste||[]),{id,nome:name,parole}];save();render();toast(`Aggiunte ${parole.length} parole`);return}
 });
-document.addEventListener("change",e=>{const t=e.target;if(t.dataset&&t.dataset.toggle){let a=new Set(activeIds());t.checked?a.add(t.dataset.toggle):a.delete(t.dataset.toggle);S.attive=[...a];save()}});
 document.addEventListener("input",e=>{if(e.target.id==="typed"&&Q&&Q.cur)Q.cur.answer=e.target.value});
 document.addEventListener("submit",e=>{if(e.target.id!=="typeform")return;e.preventDefault();const c=Q.cur;if(c.result)return;
   const askDe=c.dir==="de-it";const pk=askDe?"de":"it",tk=askDe?"it":"de";const pn=variants(c.w[pk]).join("|");
@@ -426,5 +446,6 @@ document.addEventListener("visibilitychange",()=>{if(document.visibilityState===
 render();connect();
 </script>
 
+<script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}))}</script>
 </body>
 </html>
