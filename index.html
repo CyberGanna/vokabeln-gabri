@@ -666,6 +666,15 @@ document.addEventListener("keydown",e=>{if(view!=="quiz"||!Q||!Q.cur)return;
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden")flush()});
 
 render();connect();sendOutbox();
+/* Tira giù per aggiornare (nell'app installata non c'è il refresh del browser) */
+(()=>{let y0=null,pulled=0;const tip=document.createElement("div");
+  tip.style.cssText="position:fixed;left:50%;top:calc(env(safe-area-inset-top) + 8px);transform:translateX(-50%);background:var(--ink);color:var(--paper);font:700 .85rem var(--body);padding:6px 12px;border-radius:99px;z-index:99;opacity:0;transition:opacity .15s;pointer-events:none";
+  document.body.appendChild(tip);
+  addEventListener("touchstart",e=>{y0=(scrollY<=0&&view!=="quiz")?e.touches[0].clientY:null;pulled=0},{passive:true});
+  addEventListener("touchmove",e=>{if(y0===null)return;pulled=e.touches[0].clientY-y0;if(pulled>20){tip.style.opacity=1;tip.textContent=pulled>110?"Lascia per aggiornare":"Tira giù per aggiornare"}},{passive:true});
+  addEventListener("touchend",()=>{tip.style.opacity=0;if(y0!==null&&pulled>110){tip.textContent="Aggiorno…";tip.style.opacity=1;
+    (navigator.serviceWorker&&navigator.serviceWorker.getRegistration?navigator.serviceWorker.getRegistration().then(r=>r&&r.update()).catch(()=>{}):Promise.resolve()).finally(()=>location.reload())}y0=null});
+})();
 </script>
 
 <script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}))}</script>
