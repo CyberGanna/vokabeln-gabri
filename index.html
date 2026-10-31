@@ -144,7 +144,11 @@ const INTERVALS=[0,1,2,4,7,15,30]; // giorni per scatola 0..6
    capitolo precedente (scritte in tedesco). */
 const FASI={1:{mode:"scelta",dir:"de-it",nome:"Tedesco → italiano, scegli tra 5"},2:{mode:"scelta",dir:"it-de",nome:"Italiano → tedesco, scegli tra 5"},
   3:{mode:"scrivi",dir:"de-it",nome:"Tedesco → scrivi in italiano"},4:{mode:"scrivi",dir:"it-de",nome:"Italiano → scrivi in tedesco"}};
-const NEW_PER_NIGHT=12, OLD_PER_NIGHT=3;
+const PER_NIGHT=15, OLD_PER_NIGHT=3, EXTRA_STEP=5;
+/* 15 parole a sera in tutto (dal capitolo 2: 12 nuove + 3 del precedente).
+   Finite le 15 l'app chiede se ne vuole altre 5 o se si continua domani. */
+const extraToday=()=>((S.extra||{})[today()]||0);
+const newPerNight=()=>PER_NIGHT-(currentIdx()>0?OLD_PER_NIGHT:0)+extraToday();
 const DOC_PATH="progressi/gabri";
 const LS_KEY="vokabeln-gabri-v1";
 
@@ -204,7 +208,7 @@ async function connect(){
 function dueToday(){const t=today();return activeWords().filter(w=>{const c=cardOf(w.id);return c&&c.box>0&&c.due<=t})}
 function newWords(){const l=currentList(),p=phaseOf(l);return wordsOf(l).filter(w=>passOf(w.id).f<p)}
 function passedToday(){const t=today();return Object.values(S.pass||{}).filter(x=>x.d===t).length}
-function newLeftToday(){return Math.max(0,Math.min(NEW_PER_NIGHT-passedToday(),newWords().length))}
+function newLeftToday(){return Math.max(0,Math.min(newPerNight()-passedToday(),newWords().length))}
 function oldPool(){const i=currentIdx();return i>0?wordsOf(allLists()[i-1]):[]}
 /* Le 3 del capitolo precedente: prima quelle sbagliate più volte, poi a caso. */
 function pickHard(pool,n){const ko=w=>(cardOf(w.id)||{}).ko||0;
@@ -270,8 +274,8 @@ function vHome(){const cur=currentList(),ci=currentIdx(),L=allLists();const cw=w
     ${total>0?`<h2>${nNew?`${nNew} parole`:""}${nNew&&nOld?" + ":""}${nOld?`${nOld} di ripasso`:""}</h2>
       <p class="muted">${nOld?`Le ${nOld} di ripasso sono prese a caso dal ${esc(prevName)}: le vedi in italiano e le scrivi in tedesco.`:FASI[ph].mode==="scelta"?"Per ogni parola scegli la risposta giusta tra 5.":"Per ogni parola scrivi la risposta."}</p>`
      :`<h2>Fatto per stasera, bravo!</h2>
-      <p class="muted">${allDone?"Hai studiato tutte le parole. Continua con i ripassi.":"Domani sera arrivano le prossime 12."}</p>`}
-    ${total>0?`<button class="primary big" id="start">Inizia</button>`:""}
+      <p class="muted">${allDone?"Hai studiato tutte le parole. Continua con i ripassi.":"Domani sera arrivano le prossime."}</p>`}
+    ${total>0?`<button class="primary big" id="start">Inizia</button>`:newWords().length?`<button class="primary big" id="more">Ne voglio fare ancora ${EXTRA_STEP}</button>`:""}
     ${due.length?`<button class="big" id="review">Ripassa le parole da rinforzare (${due.length})</button>`:""}
     ${words.some(w=>cardOf(w.id))?`<button class="big" id="free">Ripasso libero (10 parole già viste)</button>`:""}
     <p class="label" style="margin-top:6px">Per i ripassi extra</p>
@@ -405,9 +409,11 @@ function vFine(){const t=Q.total,ok=Q.ok;const pct=t?Math.round(ok/t*100):0;
   <section class="sheet pop" style="text-align:left">
     <p class="confetti">${pct>=80?"Toll!":pct>=50?"Gut gemacht!":"Weiter so!"}</p>
     <h2>${ok} su ${t} giuste al primo colpo</h2>
-    <p class="muted">${Q.kind==="sera"?"Studio di stasera completato. Ci vediamo domani sera!":"Ripasso completato."} Sei a ${streak()} ${streak()===1?"sera":"sere"} di fila.</p>
+    <p class="muted">${Q.kind==="sera"?"Studio di stasera completato!":"Ripasso completato."} Sei a ${streak()} ${streak()===1?"sera":"sere"} di fila.</p>
     ${errs.length?`<p class="label">Da ripassare</p>${errs.map(w=>`<div class="listitem"><div class="grow"><b>${deHtml(w.de)}</b><p class="small muted">${esc(w.it)}</p></div></div>`).join("")}`:""}
-    <button class="primary big" id="home">Torna alla pagina iniziale</button>
+    ${Q.kind==="sera"&&newWords().length?`<h3>Ne vuoi ancora o andiamo a domani sera?</h3>
+      <div class="two"><button class="primary" id="more">Sì, altre ${EXTRA_STEP}</button><button id="home">A domani sera</button></div>`
+      :`<button class="primary big" id="home">Torna alla pagina iniziale</button>`}
   </section>`}
 
 function render(){const app=$("#app");
@@ -422,6 +428,7 @@ document.addEventListener("click",e=>{const t=e.target.closest("button,#flip");i
   if(t.dataset.modo){S.modo=t.dataset.modo;save();render();return}
   if(t.id==="start"){startQuiz("sera");return}
   if(t.id==="review"){startQuiz("ripasso");return}
+  if(t.id==="more"){S.extra=Object.assign({},S.extra,{[today()]:Math.max(extraToday(),passedToday()+EXTRA_STEP-(newPerNight()-extraToday()))});save();startQuiz("sera");return}
   if(t.id==="backup"){const code="VOK1:"+btoa(unescape(encodeURIComponent(JSON.stringify(S))));
     const fallback=()=>{const ta=$("#restoretext");ta.value=code;ta.select();toast("Codice selezionato: copialo")};
     try{navigator.clipboard.writeText(code).then(()=>toast("Codice copiato"),fallback)}catch(e){fallback()}return}
