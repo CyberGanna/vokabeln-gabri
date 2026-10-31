@@ -152,7 +152,7 @@ let db=null, view="home", Q=null, saving=false, dirty=false, saveTimer=null, syn
 
 function allLists(){return [...BUILTIN,...(S.liste||[])]}
 function activeIds(){const ids=allLists().map(l=>l.id);
-  if(!S.attive){const real=allLists().filter(l=>!l.esempio);return (real.length?real:allLists()).map(l=>l.id)}
+  if(!S.attive)return ["k1"]; // di partenza solo il Kapitel 1, come in classe
   return S.attive.filter(id=>ids.includes(id))}
 function wordsOf(list){return list.parole.map(([de,it])=>({id:cardId(de,it),de,it,lista:list.id}))}
 function activeWords(){const act=new Set(activeIds());const seen=new Set();const out=[];
