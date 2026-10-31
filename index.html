@@ -54,6 +54,18 @@ p{margin:0}
 .small{font-size:.88rem}
 .label{font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700}
 .tagline{font-family:var(--display);font-weight:600;font-size:1.1rem;color:var(--pen);margin-top:4px}
+.db-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.db-tile{border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.db-tile b{font-family:var(--display);font-size:1.8rem;line-height:1.05;font-variant-numeric:tabular-nums}
+.db-chart{position:relative}.db-chart svg{display:block;width:100%;height:auto}
+.db-tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--paper);font-size:.8rem;padding:5px 8px;border-radius:8px;white-space:nowrap;transform:translate(-50%,-115%)}
+.db-scroll{overflow-x:auto}
+.db-table{border-collapse:collapse;width:100%;font-size:.86rem;font-variant-numeric:tabular-nums}
+.db-table th,.db-table td{padding:6px 6px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+.db-table th{font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.db-table .r{text-align:center}
+.db-pill{display:inline-block;padding:1px 6px;border-radius:99px;font-weight:700;font-size:.78rem}
+.db-pill.ok{background:var(--ok-soft);color:var(--ok)}.db-pill.mid{background:var(--pen-soft);color:var(--pen)}.db-pill.bad{background:var(--bad-soft);color:var(--bad)}
 .rounds{margin:0;padding-left:1.3em;display:grid;gap:2px}
 .phases{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}.phases span{height:6px;border-radius:99px;background:var(--grid)}.phases .done{background:var(--ok)}.phases .now{background:var(--pen)}
 header.top{display:flex;align-items:center;justify-content:space-between;gap:12px}
@@ -118,7 +130,7 @@ code{background:var(--paper);border:1px solid var(--line);border-radius:6px;padd
 
 <div class="wrap" id="app">
   <header class="top">
-    <div><p class="label">Deutsch · Vokabeln</p><h1>Ciao Gabri!</h1><p class="tagline">Sei pronto a spaccare tutto???</p></div>
+    <div><p class="label">Deutsch · Vokabeln</p><h1>Ciao!</h1><p class="tagline">Sei pronto a spaccare tutto???</p></div>
   </header>
   <p class="muted">Caricamento…</p>
 </div>
@@ -261,14 +273,21 @@ function parseList(text){const out=[];for(let line of text.split(/\r?\n/)){line=
 
 /* ---------- viste ---------- */
 function shell(inner){return `
-  <header class="top"><div><p class="label">Deutsch · Vokabeln</p><h1>Ciao Gabri!</h1><p class="tagline">Sei pronto a spaccare tutto???</p></div></header>
+  <header class="top"><div><p class="label">Deutsch · Vokabeln</p><h1>Ciao${S.nome?" "+esc(S.nome):""}!</h1><p class="tagline">Sei pronto a spaccare tutto???</p></div></header>
   <nav class="tabs" aria-label="Sezioni">
     <button data-go="home" ${view==="home"?'aria-current="page"':""}>Stasera</button>
     <button data-go="progressi" ${view==="progressi"?'aria-current="page"':""}>Progressi</button>
     <button data-go="liste" ${view==="liste"?'aria-current="page"':""}>Liste</button>
+    <button data-go="genitori" ${view==="genitori"?'aria-current="page"':""}>Genitori</button>
   </nav>${inner}`}
 
-function vHome(){const cur=currentList(),ci=currentIdx(),L=allLists();const cw=wordsOf(cur);
+function vNome(){return shell(`
+  <section class="sheet pop">
+    <h2>Come ti chiami?</h2>
+    <p class="muted">Scrivi il tuo nome: lo useremo per salutarti ogni sera.</p>
+    <form id="nameform" class="row" autocomplete="off"><input type="text" id="nomeinput" class="grow" placeholder="Il tuo nome" maxlength="30"><button class="primary" type="submit">Iniziamo</button></form>
+  </section>`)}
+function vHome(){if(!S.nome)return vNome();const cur=currentList(),ci=currentIdx(),L=allLists();const cw=wordsOf(cur);
   const studied=phaseCount(cur);const nNew=newLeftToday();
   const nOld=sessionDone()?0:Math.min(OLD_PER_NIGHT,oldPool().length);const total=nNew+nOld;
   const due=dueToday();const words=activeWords();const dir=S.direzione,modo=S.modo;
@@ -370,7 +389,7 @@ function startQuiz(kind){let items;
   else{const nw=newWords().slice(0,newLeftToday());
     const old=sessionDone()?[]:pickHard(oldPool(),OLD_PER_NIGHT);const batch=[...nw,...old];if(!batch.length)return;
     const rounds=[1,2,3,4,5,6].filter(rd=>batch.some(w=>maxPh(w)>=rd));
-    Q={kind,batch,rounds,ri:0,bad:new Set(),ok:0,errs:[],cur:null,free:false};startRound();return}
+    Q={kind,batch,rounds,ri:0,bad:new Set(),ok:0,errs:[],cur:null,free:false,t0:Date.now(),rs:{},asked:0};startRound();return}
   if(!items.length)return;
   Q={queue:items.map(e=>({...e,tries:0})),done:0,total:items.length,ok:0,errs:[],cur:null,state:"ask",free:kind!=="sera",kind};nextQ()}
 function startRound(){const rd=Q.rounds[Q.ri],F=FASI[rd];
@@ -378,7 +397,21 @@ function startRound(){const rd=Q.rounds[Q.ri],F=FASI[rd];
   Q.queue=items;Q.total=items.length;Q.done=0;nextQ()}
 function finishSera(){const t=today();S.tent=Object.assign({},S.tent);S.wrong=Object.assign({},S.wrong);S.done=Object.assign({},S.done);
   for(const w of Q.batch){S.tent[w.id]={d:t};if(Q.bad.has(w.id))S.wrong[w.id]=true;else{delete S.wrong[w.id];S.done[w.id]=S.done[w.id]||t}}
-  S.fatto=Object.assign({},S.fatto,{[t]:true});save()}
+  S.fatto=Object.assign({},S.fatto,{[t]:true});save();report()}
+/* Invio dei risultati per la dashboard dei genitori (tab Genitori).
+   Ogni famiglia sceglie un codice; il telefono del ragazzo invia con quel codice,
+   il genitore inserisce lo stesso codice e vede solo i dati della sua famiglia.
+   I dati finiscono in un Foglio Google tramite Apps Script (REPORT_URL). */
+const REPORT_URL="";
+function report(){if(!REPORT_URL||!S.invia||!S.famiglia)return;const cur=currentList(),bad=Q.batch.filter(w=>Q.bad.has(w.id));
+  const rr={};for(const k of [1,2,3,4,5,6]){const x=Q.rs[k];rr["r"+k]=x?`${x.ok}/${x.n}`:""}
+  S.outbox=[...(S.outbox||[]),{app:"vokabeln-gabri",id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),famiglia:S.famiglia,nome:S.nome||"",data:today(),capitolo:cur.nome.split(" · ")[0],
+    parole:Q.batch.length,imparate:Q.batch.length-bad.length,sbagliate:bad.length,paroleSbagliate:bad.map(w=>w.de+" = "+w.it),...rr,
+    domande:Q.asked,minuti:Math.max(1,Math.round((Date.now()-Q.t0)/60000)),imparateCapitolo:phaseCount(cur),totaleCapitolo:wordsOf(cur).length,
+    imparateTotali:Object.keys(S.done||{}).length}];save();sendOutbox()}
+async function sendOutbox(){if(!REPORT_URL||!S.invia||!(S.outbox||[]).length||sendOutbox.busy)return;sendOutbox.busy=true;
+  try{while(S.outbox.length){await fetch(REPORT_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(S.outbox[0])});S.outbox=S.outbox.slice(1);save()}}catch(e){}
+  sendOutbox.busy=false}
 function pickMode(entry){if(entry.mode)return entry.mode;const m=S.modo;const c=cardOf(entry.w.id);
   if(m!=="misto")return m;
   if(!c||c.box<=1)return entry.tries?"scelta":"carte";
@@ -412,7 +445,9 @@ function nextQ(){if(!Q.queue.length){
     Q.cur.opts=shuffle(opts)}
   view="quiz";render()}
 function answer(correct,extra){const c=Q.cur;c.result=correct?"ok":"bad";c.extra=extra||"";
-  if(c.tries===0){grade(c.w,correct);if(correct)Q.ok++;else{Q.errs.push(c.w);if(Q.bad)Q.bad.add(c.w.id)}}
+  if(Q.rs)Q.asked++;
+  if(c.tries===0){grade(c.w,correct);if(correct)Q.ok++;else{Q.errs.push(c.w);if(Q.bad)Q.bad.add(c.w.id)}
+    if(Q.rs&&c.phase){const x=Q.rs[c.phase]||(Q.rs[c.phase]={n:0,ok:0});x.n++;if(correct)x.ok++}}
   else if(!correct&&S.cards[c.w.id]){S.cards[c.w.id].ko++;save()}
   if(!correct)Q.queue.splice(Math.min(Q.queue.length,3),0,{w:c.w,mode:c.mode,dir:c.dir,phase:c.phase,tries:c.tries+1});else Q.done++;
   render()}
@@ -471,6 +506,92 @@ function vFine(){if(Q.kind==="sera")return vFineSera();const t=Q.total,ok=Q.ok;c
       :`<button class="primary big" id="home">Torna alla pagina iniziale</button>`}
   </section>`}
 
+/* ---------- tab Genitori: codice famiglia, invio, dashboard ---------- */
+let G=null; // {rows,err,at}
+async function loadDash(){if(!REPORT_URL||!S.famiglia)return;G={rows:G&&G.rows||null,loading:true};if(view==="genitori")render();
+  try{const r=await fetch(REPORT_URL+"?famiglia="+encodeURIComponent(S.famiglia)+"&t="+Date.now());const j=await r.json();G={rows:(j.rows||[]).filter(x=>x.data),at:new Date()}}
+  catch(e){G={rows:G&&G.rows,err:true}}
+  if(view==="genitori")render()}
+function vGenitori(){
+  if(!REPORT_URL)return shell(`<section class="sheet"><h2>Dashboard dei genitori</h2><p class="muted">Il collegamento ai dati non è ancora attivo.</p></section>`);
+  if(!S.famiglia)return shell(`
+  <section class="sheet pop"><h2>Dashboard dei genitori</h2>
+    <p class="muted">Scegli un codice famiglia, per esempio una parola che conoscete solo voi. Mettilo sia sul telefono del ragazzo sia sul tuo: vedrai solo i risultati della tua famiglia.</p>
+    <form id="famform" class="row" autocomplete="off"><input type="text" id="faminput" class="grow" placeholder="Codice famiglia" autocapitalize="off"><button class="primary" type="submit">Salva</button></form>
+  </section>`);
+  return shell(`
+  <section class="sheet">
+    <div class="row"><p class="label grow">Codice famiglia: <b style="color:var(--ink);text-transform:none;letter-spacing:0">${esc(S.famiglia)}</b></p><button class="ghost" id="famchange">Cambia</button></div>
+    <p class="label">Questo è il telefono del ragazzo?</p>
+    <button id="invia" class="${S.invia?"":"primary"}">${S.invia?"✓ Invia i risultati di ogni sera · tocca per disattivare":"Sì, invia i risultati di ogni sera"}</button>
+    <p class="small muted">${S.invia?"Ogni volta che finisce lo studio della sera, i risultati arrivano alla dashboard.":"Attivalo solo sul telefono di chi studia. Sul telefono del genitore non serve."}${(S.outbox||[]).length?` · ${S.outbox.length} in attesa di connessione`:""}</p>
+  </section>
+  ${dashHTML()}`)}
+function dashHTML(){
+  if(!G||(!G.rows&&G.loading))return `<section class="sheet"><p class="muted">Caricamento dei dati…</p></section>`;
+  if(!G.rows)return `<section class="sheet"><p class="muted">Non riesco a leggere i dati. Controlla la connessione.</p><button id="dashreload">Riprova</button></section>`;
+  const rows=G.rows.slice().sort((a,b)=>String(a.data).localeCompare(String(b.data))||String(a.id).localeCompare(String(b.id)));
+  const head=`<div class="row"><p class="small muted grow">${G.loading?"Aggiornamento…":G.err?"Dati non aggiornati: controlla la connessione.":"Aggiornato alle "+G.at.toLocaleTimeString("it-IT",{hour:"2-digit",minute:"2-digit"})}</p><button class="ghost" id="dashreload">Aggiorna</button></div>`;
+  if(!rows.length)return `<section class="sheet">${head}<h2>Ancora nessuna sera registrata</h2><p class="muted">Appena il ragazzo finisce il primo studio della sera con l'invio attivo, qui compaiono parole imparate, errori e risultati di ogni round.</p></section>`;
+  const n=v=>Number(v)||0,fmt=d=>{const [y,m,g]=String(d).split("-");return `${+g}/${+m}`};
+  const names=[...new Set(rows.map(r=>r.nome).filter(Boolean))];const last=rows[rows.length-1];
+  const byDay={};for(const r of rows){const d=byDay[r.data]||(byDay[r.data]={imp:0,sba:0,min:0});d.imp+=n(r.imparate);d.sba+=n(r.sbagliate);d.min+=n(r.minuti)}
+  let streak=0,d=today();if(!byDay[d])d=addDays(d,-1);while(byDay[d]){streak++;d=addDays(d,-1)}
+  const days=[];for(let i=13;i>=0;i--){const k=addDays(today(),-i);days.push([k,byDay[k]||null])}G.days=days;
+  const week=rows.filter(r=>r.data>=addDays(today(),-6));const wImp=week.reduce((a,r)=>a+n(r.imparate),0),wTot=week.reduce((a,r)=>a+n(r.parole),0);
+  const capP=n(last.imparate_capitolo),capT=n(last.totale_capitolo)||1;
+  const cnt={};for(const r of rows)for(const w of String(r.parole_sbagliate||"").split(";").map(x=>x.trim()).filter(Boolean))cnt[w]=(cnt[w]||0)+1;
+  const errs=Object.entries(cnt).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const RN=["Ted → ita, scelta","Ita → ted, scelta","Scrivi in italiano","Scrivi in tedesco","Articolo","Articolo + nome"];
+  const rAvg=[1,2,3,4,5,6].map(k=>{let a=0,b=0;for(const r of week){const [x,y]=String(r["r"+k]||"").split("/").map(Number);if(y){a+=x;b+=y}}return b?a+"/"+b:""});
+  const pill=v=>{const [a,b]=String(v||"").split("/").map(Number);if(!b)return `<span class="muted">–</span>`;const p=a/b;return `<span class="db-pill ${p>=.9?"ok":p>=.7?"mid":"bad"}">${a}/${b}</span>`};
+  return `
+  <section class="sheet">${head}
+    <h2>${names.length?"Come va "+esc(names.join(", ")):"Come va"}</h2>
+    <div class="db-tiles">
+      <div class="db-tile"><p class="label">Sere di fila</p><b>${streak}</b><p class="small muted">${Object.keys(byDay).length} sere in tutto</p></div>
+      <div class="db-tile"><p class="label">Parole imparate</p><b>${n(last.imparate_totali)}</b><p class="small muted">dall'inizio</p></div>
+      <div class="db-tile"><p class="label">Ultimi 7 giorni</p><b>${wImp}</b><p class="small muted">imparate su ${wTot} studiate</p></div>
+      <div class="db-tile"><p class="label">${esc(last.capitolo)}</p><b>${capP}<span class="muted" style="font-size:1rem"> / ${capT}</span></b><div class="bar"><span style="width:${capP/capT*100}%;background:var(--ok)"></span></div></div>
+    </div>
+  </section>
+  <section class="sheet">
+    <h3>Parole per sera</h3>
+    <p class="small muted">Ultime due settimane. Imparate: senza errori in nessun round. Da rifare: tornano la sera dopo.</p>
+    <div class="legend"><span><i style="background:var(--ok)"></i>Imparate</span><span><i style="background:var(--bad)"></i>Da rifare</span></div>
+    <div class="db-chart" id="dbchart">${dashChart(days)}<div class="db-tip" id="dbtip" hidden></div></div>
+  </section>
+  <section class="sheet">
+    <h3>Risultati per round</h3>
+    <p class="small muted">Giuste al primo colpo. Verde da 90%, blu da 70%, rosso sotto.</p>
+    <div class="db-scroll"><table class="db-table">
+      <thead><tr><th>Sera</th><th>Parole</th><th>Imparate</th>${RN.map((x,i)=>`<th class="r" title="${x}">R${i+1}</th>`).join("")}<th>Min</th></tr></thead>
+      <tbody>${rows.slice().reverse().slice(0,30).map(r=>`<tr><td>${fmt(r.data)} <span class="muted small">${esc(String(r.capitolo).replace("Kapitel ","K"))}</span></td><td>${n(r.parole)}</td><td>${n(r.imparate)}</td>${[1,2,3,4,5,6].map(k=>`<td class="r">${pill(r["r"+k])}</td>`).join("")}<td>${n(r.minuti)}</td></tr>`).join("")}</tbody>
+      <tfoot><tr><th colspan="3">Media 7 giorni</th>${rAvg.map(v=>`<td class="r">${pill(v)}</td>`).join("")}<td></td></tr></tfoot>
+    </table></div>
+    <p class="small muted">${RN.map((x,i)=>`R${i+1} ${x}`).join(" · ")}</p>
+  </section>
+  <section class="sheet">
+    <h3>Parole sbagliate più spesso</h3>
+    ${errs.length?errs.map(([w,c])=>`<div class="listitem"><div class="grow" style="min-width:0;overflow-wrap:anywhere">${esc(w)}</div><span class="small muted">${c} ${c===1?"volta":"volte"}</span></div>`).join(""):`<p class="muted">Nessun errore finora.</p>`}
+  </section>`}
+function dashChart(days){const W=520,H=200,L=30,B=26,T=8,R=6;const max=Math.max(5,...days.map(([,d])=>d?d.imp+d.sba:0));
+  const step=Math.ceil(max/4/5)*5||5,top=step*4;const y=v=>T+(H-T-B)*(1-v/top);const bw=(W-L-R)/days.length;const w=Math.min(22,bw-6);
+  const fmt=d=>{const [a,m,g]=d.split("-");return `${+g}/${+m}`};let g="";
+  for(let i=0;i<=4;i++){const v=i*step;g+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--grid)" stroke-width="1"/><text x="${L-5}" y="${y(v)+4}" text-anchor="end" font-size="10" fill="var(--muted)">${v}</text>`}
+  days.forEach(([k,d],i)=>{const x=L+i*bw+(bw-w)/2;
+    if(i%2===days.length%2||days.length<=7)g+=`<text x="${x+w/2}" y="${H-8}" text-anchor="middle" font-size="10" fill="var(--muted)">${fmt(k)}</text>`;
+    if(d){const yb=y(0),h1=(H-T-B)*d.imp/top,h2=(H-T-B)*d.sba/top;
+      if(d.imp)g+=`<rect x="${x}" y="${yb-h1}" width="${w}" height="${h1}" rx="3" fill="var(--ok)"/>`;
+      if(d.sba)g+=`<rect x="${x}" y="${yb-h1-h2-(d.imp?2:0)}" width="${w}" height="${h2}" rx="3" fill="var(--bad)"/>`}
+    g+=`<rect x="${L+i*bw}" y="${T}" width="${bw}" height="${H-T-B}" fill="transparent" data-i="${i}"/>`});
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Parole imparate e da rifare per sera, ultime due settimane">${g}</svg>`}
+function hookTip(){const svg=$("#dbchart svg"),tip=$("#dbtip");if(!svg||!G||!G.days)return;
+  const show=e=>{const t=e.target.closest("[data-i]");if(!t){tip.hidden=true;return}const [k,d]=G.days[+t.dataset.i];const [a,m,g]=k.split("-");
+    const box=$("#dbchart").getBoundingClientRect();tip.style.left=Math.min(Math.max(e.clientX-box.left,70),box.width-70)+"px";tip.style.top=(e.clientY-box.top)+"px";
+    tip.textContent=d?`${+g}/${+m}: ${d.imp} imparate, ${d.sba} da rifare, ${d.min} min`:`${+g}/${+m}: niente studio`;tip.hidden=false};
+  svg.addEventListener("pointermove",show);svg.addEventListener("pointerdown",show);svg.addEventListener("pointerleave",()=>tip.hidden=true)}
+
 function vFineSera(){const n=Q.batch.length,bad=Q.batch.filter(w=>Q.bad.has(w.id));const good=n-bad.length;
   return `
   <section class="sheet pop" style="text-align:left">
@@ -484,16 +605,20 @@ function vFineSera(){const n=Q.batch.length,bad=Q.batch.filter(w=>Q.bad.has(w.id
   </section>`}
 
 function render(){const app=$("#app");
-  app.innerHTML=view==="quiz"?vQuiz():view==="round"?vRound():view==="fine"?vFine():view==="progressi"?vProgressi():view==="liste"?vListe():vHome();
+  app.innerHTML=view==="quiz"?vQuiz():view==="round"?vRound():view==="fine"?vFine():view==="progressi"?vProgressi():view==="liste"?vListe():view==="genitori"?vGenitori():vHome();
   if(view==="quiz"){const inp=$("#typed");if(inp&&!inp.disabled)inp.focus();else{const n=$("#next");if(n)n.focus()}}
+  if(view==="genitori")hookTip();
   window.scrollTo(0,0)}
 
 /* ---------- eventi ---------- */
 document.addEventListener("click",e=>{const t=e.target.closest("button,#flip");if(!t)return;
-  if(t.dataset.go){view=t.dataset.go;resetAsk=false;render();return}
+  if(t.dataset.go){view=t.dataset.go;resetAsk=false;render();if(view==="genitori"&&!G)loadDash();return}
   if(t.id==="reset"){resetAsk=true;render();return}
+  if(t.id==="invia"){S.invia=!S.invia;save();render();if(S.invia){toast("Invio attivato: i risultati arrivano alla dashboard");sendOutbox()}return}
+  if(t.id==="famchange"){S.famiglia="";S.invia=false;G=null;save();render();return}
+  if(t.id==="dashreload"){loadDash();return}
   if(t.id==="resetno"){resetAsk=false;render();return}
-  if(t.id==="resetyes"){const keep={liste:S.liste,direzione:S.direzione,modo:S.modo};S=Object.assign(blank(),keep);resetAsk=false;save();view="home";render();toast("Progressi azzerati: si riparte dal Kapitel 1");return}
+  if(t.id==="resetyes"){const keep={liste:S.liste,direzione:S.direzione,modo:S.modo,nome:S.nome,invia:S.invia,famiglia:S.famiglia};S=Object.assign(blank(),keep);resetAsk=false;save();view="home";render();toast("Progressi azzerati: si riparte dal Kapitel 1");return}
   if(t.dataset.dir){S.direzione=t.dataset.dir;save();render();return}
   if(t.dataset.modo){S.modo=t.dataset.modo;save();render();return}
   if(t.id==="start"){startQuiz("sera");return}
@@ -524,7 +649,9 @@ document.addEventListener("click",e=>{const t=e.target.closest("button,#flip");i
     const id="u-"+Date.now().toString(36);S.liste=[...(S.liste||[]),{id,nome:name,parole}];save();render();toast(`Aggiunte ${parole.length} parole`);return}
 });
 document.addEventListener("input",e=>{if(e.target.id==="typed"&&Q&&Q.cur)Q.cur.answer=e.target.value});
-document.addEventListener("submit",e=>{if(e.target.id!=="typeform")return;e.preventDefault();const c=Q.cur;if(c.result)return;
+document.addEventListener("submit",e=>{if(e.target.id==="famform"){e.preventDefault();const v=$("#faminput").value.trim().toLowerCase();if(v.length<4){toast("Il codice deve avere almeno 4 caratteri");return}S.famiglia=v;save();G=null;render();loadDash();return}
+  if(e.target.id==="nameform"){e.preventDefault();const v=$("#nomeinput").value.trim();if(v){S.nome=v.slice(0,30);save();render()}return}
+  if(e.target.id!=="typeform")return;e.preventDefault();const c=Q.cur;if(c.result)return;
   if(c.mode==="articolo"){const a=norm(c.answer).split(" ")[0];if(!a){answer(false);return}answer(a===artOf(c.w.de));return}
   const askDe=c.dir==="de-it";const pk=askDe?"de":"it",tk=askDe?"it":"de";const pn=variants(c.w[pk]).join("|");
   const targets=[c.w[tk],...allWords().filter(x=>x.id!==c.w.id&&variants(x[pk]).join("|")===pn).map(x=>x[tk])];
@@ -538,7 +665,7 @@ document.addEventListener("keydown",e=>{if(view!=="quiz"||!Q||!Q.cur)return;
   if(Q.cur.mode==="carte"&&!Q.cur.result&&(e.key===" "||e.key==="Enter")&&!Q.cur.flipped){e.preventDefault();Q.cur.flipped=true;render()}});
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden")flush()});
 
-render();connect();
+render();connect();sendOutbox();
 </script>
 
 <script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}))}</script>
