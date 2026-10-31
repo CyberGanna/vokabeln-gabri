@@ -94,6 +94,9 @@ textarea{min-height:170px;font-size:.98rem;line-height:1.5}
 .art-der{color:var(--der)} .art-die{color:var(--die)} .art-das{color:var(--das)}
 .opts{display:grid;gap:10px}
 .opt{text-align:left;font-size:1.1rem;font-weight:700;padding:14px 16px}
+.opt.sel{border-color:var(--pen);background:var(--pen-soft);color:var(--pen)}
+button:disabled{cursor:default}
+button:disabled:not(.opt){opacity:.45}
 .opt.ok{border-color:var(--ok);background:var(--ok-soft)}
 .opt.bad{border-color:var(--bad);background:var(--bad-soft)}
 .feedback{border-radius:12px;padding:12px 14px;font-weight:700;display:flex;flex-direction:column;gap:4px}
@@ -421,8 +424,9 @@ function vQuiz(){const c=Q.cur,w=c.w;const askDe=c.dir==="de-it";const art=c.mod
       ${c.flipped&&!c.result?`<div class="two"><button id="no" style="border-color:var(--bad);color:var(--bad)">Non lo sapevo</button><button id="si" style="border-color:var(--ok);color:var(--ok)">Lo sapevo</button></div>`:""}`;
   }else if(c.mode==="scelta"){
     const key=askDe?"it":"de";
-    body=`<div class="opts">${c.opts.map((o,i)=>{let cls="";if(c.result){if(o.id===w.id)cls="ok";else if(c.picked===i)cls="bad"}
-      return `<button class="opt ${cls}" data-opt="${i}" ${c.result?"disabled":""}>${key==="de"?deHtml(o.de):esc(o.it)}</button>`}).join("")}</div>`;
+    body=`<div class="opts">${c.opts.map((o,i)=>{let cls="";if(c.result){if(o.id===w.id)cls="ok";else if(c.picked===i)cls="bad"}else if(c.picked===i)cls="sel";
+      return `<button class="opt ${cls}" data-opt="${i}" aria-pressed="${c.picked===i}" ${c.result?"disabled":""}>${key==="de"?deHtml(o.de):esc(o.it)}</button>`}).join("")}</div>
+      ${c.result?"":`<button class="primary big" id="confirm" ${c.picked==null?"disabled":""}>Avanti</button>`}`;
   }else{
     body=`<form id="typeform" class="row" autocomplete="off"><input type="text" id="typed" class="grow" placeholder="${art?"der, die o das?":askDe?"Scrivi in italiano":"Scrivi in tedesco, con l'articolo"}" value="${esc(c.answer)}" ${c.result?"disabled":""} autocapitalize="off" spellcheck="false" lang="${askDe&&!art?"it":"de"}">
       ${c.result?"":`<button class="primary" type="submit">Controlla</button>`}</form>
@@ -488,7 +492,8 @@ document.addEventListener("click",e=>{const t=e.target.closest("button,#flip");i
   if(t.id==="no"){answer(false);return}
   if(t.id==="dunno"){Q.cur.answer="";answer(false);return}
   if(t.dataset.key){const i=$("#typed");const p=i.selectionStart??i.value.length;i.value=i.value.slice(0,p)+t.dataset.key+i.value.slice(i.selectionEnd??p);Q.cur.answer=i.value;i.focus();i.setSelectionRange(p+1,p+1);return}
-  if(t.dataset.opt!==undefined){const i=+t.dataset.opt;Q.cur.picked=i;answer(Q.cur.opts[i].id===Q.cur.w.id);return}
+  if(t.dataset.opt!==undefined){if(Q.cur.result)return;Q.cur.picked=+t.dataset.opt;const y=window.scrollY;render();window.scrollTo(0,y);return}
+  if(t.id==="confirm"){if(Q.cur.picked==null||Q.cur.result)return;answer(Q.cur.opts[Q.cur.picked].id===Q.cur.w.id);return}
   if(t.dataset.del){S.liste=S.liste.filter(l=>l.id!==t.dataset.del);save();render();toast("Lista eliminata");return}
   if(t.id==="addlist"){const name=$("#newname").value.trim()||"Lista "+((S.liste||[]).length+1);const parole=parseList($("#newtext").value);
     if(!parole.length){toast("Nessuna parola trovata: scrivi tedesco = italiano, una per riga");return}
