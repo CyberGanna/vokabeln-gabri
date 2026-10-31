@@ -375,11 +375,29 @@ function pickMode(entry){if(entry.mode)return entry.mode;const m=S.modo;const c=
   if(!c||c.box<=1)return entry.tries?"scelta":"carte";
   return c.box<=2?"scelta":"scrivi"}
 function pickDir(){return S.direzione==="mix"?(Math.random()<.5?"it-de":"de-it"):S.direzione}
+/* Risposte sbagliate "furbe": stesso tipo di parola (nome/verbo/altro), stesso articolo,
+   stesso capitolo, lunghezza e iniziale simili. Così non si indovina per esclusione. */
+function wkind(de){const d=de.replace(/\([^)]*\)/g,"").trim();
+  if(/^(der|die|das)(\/(der|die|das))?\s/i.test(d))return "nome";
+  if(/^(ich|du|er|sie|es|wir)\s/.test(d))return "forma";
+  if(/^[a-zäöü]+(en|ern|eln)$/.test(d))return "verbo";
+  if(/^[A-ZÄÖÜ]/.test(d))return "nome";
+  return "altro"}
+const artOf=de=>((de.match(/^(der|die|das)\s/i)||[])[1]||"").toLowerCase();
+const itArt=it=>((it.match(/^(il|lo|la|l'|i|gli|le)\s?/i)||[])[1]||"").toLowerCase();
+function trickyPool(w,pool,key){const k=wkind(w.de),a=artOf(w.de),ia=itArt(w.it),ans=norm(w[key]);
+  const score=x=>{let sc=Math.random()*2;
+    if(wkind(x.de)===k)sc+=6;if(a&&artOf(x.de)===a)sc+=3;if(ia&&itArt(x.it)===ia)sc+=2;
+    if(x.lista===w.lista)sc+=2;const o=norm(x[key]);
+    if(Math.abs(o.length-ans.length)<=3)sc+=1.5;
+    if(o.replace(/^(der|die|das|il|lo|la|l'|i|gli|le)\s?/,"")[0]===ans.replace(/^(der|die|das|il|lo|la|l'|i|gli|le)\s?/,"")[0])sc+=1.5;
+    return sc};
+  return pool.map(x=>[x,score(x)]).sort((p,q)=>q[1]-p[1]).map(p=>p[0])}
 function nextQ(){if(!Q.queue.length){if(Q.kind==="sera"){S.fatto=Object.assign({},S.fatto,{[today()]:true});save()}view="fine";render();return}
   const e=Q.queue.shift();Q.cur={...e,mode:pickMode(e),dir:e.dir||pickDir(),answer:"",result:null,flipped:false};
   if(Q.cur.mode==="scelta"){const pool=allWords().filter(x=>x.id!==e.w.id);const key=Q.cur.dir==="it-de"?"de":"it";
     const pkey=key==="de"?"it":"de";const pn=variants(e.w[pkey]).join("|");
-    const seen=new Set([e.w[key]]);for(const x of pool)if(variants(x[pkey]).join("|")===pn)seen.add(x[key]);const opts=[e.w];for(const x of shuffle(pool)){if(opts.length>=5)break;if(!seen.has(x[key])){seen.add(x[key]);opts.push(x)}}
+    const seen=new Set([e.w[key]]);for(const x of pool)if(variants(x[pkey]).join("|")===pn)seen.add(x[key]);const opts=[e.w];for(const x of trickyPool(e.w,pool,key)){if(opts.length>=5)break;if(!seen.has(x[key])){seen.add(x[key]);opts.push(x)}}
     Q.cur.opts=shuffle(opts)}
   view="quiz";render()}
 function answer(correct,extra){const c=Q.cur;c.result=correct?"ok":"bad";c.extra=extra||"";
