@@ -206,9 +206,17 @@ async function connect(){
 
 /* ---------- ripetizione a scatole (Leitner) ---------- */
 function dueToday(){const t=today();return activeWords().filter(w=>{const c=cardOf(w.id);return c&&c.box>0&&c.due<=t})}
-function newWords(){const l=currentList(),p=phaseOf(l);return wordsOf(l).filter(w=>passOf(w.id).f<p)}
+/* Una parola supera la fase solo se la indovina al primo colpo.
+   Quelle sbagliate tornano per prime la sera dopo; il resto fino a 15 sono parole nuove. */
+const tentOf=id=>(S.tent||{})[id]||null;
+function newWords(){const l=currentList(),p=phaseOf(l),t=today();
+  const todo=wordsOf(l).filter(w=>passOf(w.id).f<p&&!(tentOf(w.id)&&tentOf(w.id).d===t));
+  const wrong=todo.filter(w=>{const x=tentOf(w.id);return x&&x.p===p&&!x.ok});
+  return [...wrong,...todo.filter(w=>!wrong.includes(w))]}
+function wrongPending(){const l=currentList(),p=phaseOf(l);return wordsOf(l).filter(w=>{const x=tentOf(w.id);return passOf(w.id).f<p&&x&&x.p===p&&!x.ok}).length}
+function attemptedToday(){const t=today();return Object.values(S.tent||{}).filter(x=>x.d===t).length}
 function passedToday(){const t=today();return Object.values(S.pass||{}).filter(x=>x.d===t).length}
-function newLeftToday(){return Math.max(0,Math.min(newPerNight()-passedToday(),newWords().length))}
+function newLeftToday(){return Math.max(0,Math.min(newPerNight()-attemptedToday(),newWords().length))}
 function oldPool(){const i=currentIdx();return i>0?wordsOf(allLists()[i-1]):[]}
 /* Le 3 del capitolo precedente: prima quelle sbagliate più volte, poi a caso. */
 function pickHard(pool,n){const ko=w=>(cardOf(w.id)||{}).ko||0;
@@ -272,6 +280,7 @@ function vHome(){const cur=currentList(),ci=currentIdx(),L=allLists();const cw=w
     <p class="small muted">${allDone?"Tutti i capitoli completati!":`${studied} di ${cw.length} parole fatte in questa fase · ${ph<4?`poi la fase ${ph+1}`:`poi si passa al ${esc((L[ci+1]||cur).nome.split(" · ")[0])}`}`}</p>
     <p class="label">Studio di stasera</p>
     ${total>0?`<h2>${nNew?`${nNew} parole`:""}${nNew&&nOld?" + ":""}${nOld?`${nOld} di ripasso`:""}</h2>
+      ${wrongPending()?`<p class="small" style="color:var(--margin);font-weight:700">Si parte dalle ${Math.min(wrongPending(),nNew)} sbagliate l'ultima volta.</p>`:""}
       <p class="muted">${nOld?`Le ${nOld} di ripasso sono prese a caso dal ${esc(prevName)}: le vedi in italiano e le scrivi in tedesco.`:FASI[ph].mode==="scelta"?"Per ogni parola scegli la risposta giusta tra 5.":"Per ogni parola scrivi la risposta."}</p>`
      :`<h2>Fatto per stasera, bravo!</h2>
       <p class="muted">${allDone?"Hai studiato tutte le parole. Continua con i ripassi.":"Domani sera arrivano le prossime."}</p>`}
@@ -368,9 +377,10 @@ function nextQ(){if(!Q.queue.length){if(Q.kind==="sera"){S.fatto=Object.assign({
     Q.cur.opts=shuffle(opts)}
   view="quiz";render()}
 function answer(correct,extra){const c=Q.cur;c.result=correct?"ok":"bad";c.extra=extra||"";
-  if(c.tries===0){grade(c.w,correct);if(correct)Q.ok++;else Q.errs.push(c.w)}
+  if(c.tries===0){grade(c.w,correct);if(correct)Q.ok++;else Q.errs.push(c.w);
+    if(c.phase){S.tent=Object.assign({},S.tent,{[c.w.id]:{p:c.phase,d:today(),ok:correct}});if(correct)markPass(c.w,c.phase);save()}}
   else if(!correct&&S.cards[c.w.id]){S.cards[c.w.id].ko++;save()}
-  if(!correct)Q.queue.splice(Math.min(Q.queue.length,3),0,{w:c.w,mode:c.mode,dir:c.dir,phase:c.phase,tries:c.tries+1});else{Q.done++;markPass(c.w,c.phase)}
+  if(!correct)Q.queue.splice(Math.min(Q.queue.length,3),0,{w:c.w,mode:c.mode,dir:c.dir,phase:c.phase,tries:c.tries+1});else Q.done++;
   render()}
 
 function vQuiz(){const c=Q.cur,w=c.w;const askDe=c.dir==="de-it";const prompt=askDe?w.de:w.it;const target=askDe?w.it:w.de;
@@ -428,7 +438,7 @@ document.addEventListener("click",e=>{const t=e.target.closest("button,#flip");i
   if(t.dataset.modo){S.modo=t.dataset.modo;save();render();return}
   if(t.id==="start"){startQuiz("sera");return}
   if(t.id==="review"){startQuiz("ripasso");return}
-  if(t.id==="more"){S.extra=Object.assign({},S.extra,{[today()]:Math.max(extraToday(),passedToday()+EXTRA_STEP-(newPerNight()-extraToday()))});save();startQuiz("sera");return}
+  if(t.id==="more"){S.extra=Object.assign({},S.extra,{[today()]:Math.max(extraToday(),attemptedToday()+EXTRA_STEP-(newPerNight()-extraToday()))});save();startQuiz("sera");return}
   if(t.id==="backup"){const code="VOK1:"+btoa(unescape(encodeURIComponent(JSON.stringify(S))));
     const fallback=()=>{const ta=$("#restoretext");ta.value=code;ta.select();toast("Codice selezionato: copialo")};
     try{navigator.clipboard.writeText(code).then(()=>toast("Codice copiato"),fallback)}catch(e){fallback()}return}
