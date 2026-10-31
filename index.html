@@ -54,6 +54,7 @@ p{margin:0}
 .small{font-size:.88rem}
 .label{font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700}
 .tagline{font-family:var(--display);font-weight:600;font-size:1.1rem;color:var(--pen);margin-top:4px}
+.phases{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}.phases span{height:6px;border-radius:99px;background:var(--grid)}.phases .done{background:var(--ok)}.phases .now{background:var(--pen)}
 header.top{display:flex;align-items:center;justify-content:space-between;gap:12px}
 nav.tabs{display:flex;gap:6px;background:var(--sheet);border:1px solid var(--line);border-radius:14px;padding:4px}
 nav.tabs button{flex:1;border:0;background:transparent;color:var(--muted);font:700 .92rem var(--body);padding:10px 6px;border-radius:10px;cursor:pointer}
@@ -135,10 +136,14 @@ const BUILTIN = [
 ];
 
 const INTERVALS=[0,1,2,4,7,15,30]; // giorni per scatola 0..6
-/* Regole di Karim: 12 parole nuove a sera, capitolo per capitolo in ordine.
-   Un capitolo è completo quando tutte le sue parole sono state studiate;
-   allora si passa al successivo. Ogni sera, oltre alle 12 nuove,
-   3 parole a caso del capitolo precedente. */
+/* Regole di Karim. Ogni capitolo si fa in 4 fasi, ognuna su tutte le parole:
+   1 tedesco → italiano, scelta tra 5   2 italiano → tedesco, scelta tra 5
+   3 tedesco → scrivere in italiano    4 italiano → scrivere in tedesco
+   12 parole a sera della fase in corso. Finita la fase 4 si passa al capitolo
+   successivo; dal capitolo 2 in poi ogni sera anche 3 parole a caso del
+   capitolo precedente (scritte in tedesco). */
+const FASI={1:{mode:"scelta",dir:"de-it",nome:"Tedesco → italiano, scegli tra 5"},2:{mode:"scelta",dir:"it-de",nome:"Italiano → tedesco, scegli tra 5"},
+  3:{mode:"scrivi",dir:"de-it",nome:"Tedesco → scrivi in italiano"},4:{mode:"scrivi",dir:"it-de",nome:"Italiano → scrivi in tedesco"}};
 const NEW_PER_NIGHT=12, OLD_PER_NIGHT=3;
 const DOC_PATH="progressi/gabri";
 const LS_KEY="vokabeln-gabri-v1";
@@ -161,7 +166,10 @@ let S=Object.assign(blank(),lsGet()||{});
 let db=null, view="home", Q=null, saving=false, dirty=false, saveTimer=null, syncNote="";
 
 function allLists(){return [...BUILTIN,...(S.liste||[])]}
-function chapterDone(l){return wordsOf(l).every(w=>cardOf(w.id))}
+const passOf=id=>(S.pass||{})[id]||{f:0,d:""};
+function phaseOf(l){return Math.min(4,1+Math.min(...wordsOf(l).map(w=>passOf(w.id).f)))}
+function chapterDone(l){return wordsOf(l).every(w=>passOf(w.id).f>=4)}
+function phaseCount(l){const p=phaseOf(l);return wordsOf(l).filter(w=>passOf(w.id).f>=p).length}
 function currentIdx(){const L=allLists();const i=L.findIndex(l=>!chapterDone(l));return i<0?L.length-1:i}
 function currentList(){return allLists()[currentIdx()]}
 function activeIds(){return allLists().slice(0,currentIdx()+1).map(l=>l.id)}
@@ -194,11 +202,14 @@ async function connect(){
 
 /* ---------- ripetizione a scatole (Leitner) ---------- */
 function dueToday(){const t=today();return activeWords().filter(w=>{const c=cardOf(w.id);return c&&c.box>0&&c.due<=t})}
-function newWords(){return wordsOf(currentList()).filter(w=>!cardOf(w.id))}
-function introducedToday(){const t=today();return Object.values(S.cards).filter(c=>c.intro===t).length}
-function newLeftToday(){return Math.max(0,Math.min(NEW_PER_NIGHT-introducedToday(),newWords().length))}
-function oldPool(){const i=currentIdx(),L=allLists(),t=today();
-  const src=i>0?wordsOf(L[i-1]):wordsOf(L[i]);return src.filter(w=>{const c=cardOf(w.id);return c&&c.intro!==t})}
+function newWords(){const l=currentList(),p=phaseOf(l);return wordsOf(l).filter(w=>passOf(w.id).f<p)}
+function passedToday(){const t=today();return Object.values(S.pass||{}).filter(x=>x.d===t).length}
+function newLeftToday(){return Math.max(0,Math.min(NEW_PER_NIGHT-passedToday(),newWords().length))}
+function oldPool(){const i=currentIdx();return i>0?wordsOf(allLists()[i-1]):[]}
+/* Le 3 del capitolo precedente: prima quelle sbagliate più volte, poi a caso. */
+function pickHard(pool,n){const ko=w=>(cardOf(w.id)||{}).ko||0;
+  return shuffle(pool).sort((a,b)=>ko(b)-ko(a)).slice(0,n)}
+function markPass(w,phase){if(!phase)return;S.pass=S.pass||{};const x=passOf(w.id);if(x.f<phase){S.pass[w.id]={f:phase,d:today()};save()}}
 const sessionDone=()=>!!(S.fatto||{})[today()];
 function learned(words){return words.filter(w=>{const c=cardOf(w.id);return c&&c.box>=4}).length}
 function grade(w,correct){const t=today();const c=S.cards[w.id]||{box:0,due:t,ok:0,ko:0,intro:t};
@@ -243,7 +254,7 @@ function shell(inner){return `
   </nav>${inner}`}
 
 function vHome(){const cur=currentList(),ci=currentIdx(),L=allLists();const cw=wordsOf(cur);
-  const studied=cw.filter(w=>cardOf(w.id)).length;const nNew=newLeftToday();
+  const ph=phaseOf(cur),studied=phaseCount(cur);const nNew=newLeftToday();
   const nOld=sessionDone()?0:Math.min(OLD_PER_NIGHT,oldPool().length);const total=nNew+nOld;
   const due=dueToday();const words=activeWords();const dir=S.direzione,modo=S.modo;
   const allDone=ci===L.length-1&&chapterDone(cur);
@@ -251,16 +262,19 @@ function vHome(){const cur=currentList(),ci=currentIdx(),L=allLists();const cw=w
   return shell(`
   <section class="sheet pop">
     <p class="label">${esc(cur.nome)}</p>
-    <div class="bar" role="img" aria-label="${studied} di ${cw.length} parole studiate"><span style="width:${studied/cw.length*100}%;background:var(--ok)"></span></div>
-    <p class="small muted">${studied} di ${cw.length} parole studiate${allDone?" · tutti i capitoli completati!":` · finito questo capitolo si passa al ${esc((L[ci+1]||cur).nome.split(" · ")[0])}`}</p>
+    <h3>Fase ${ph} di 4 · ${FASI[ph].nome}</h3>
+    <div class="phases" aria-hidden="true">${[1,2,3,4].map(i=>`<span class="${i<ph||allDone?"done":i===ph?"now":""}"></span>`).join("")}</div>
+    <div class="bar" role="img" aria-label="${studied} di ${cw.length} parole fatte in questa fase"><span style="width:${studied/cw.length*100}%;background:var(--ok)"></span></div>
+    <p class="small muted">${allDone?"Tutti i capitoli completati!":`${studied} di ${cw.length} parole fatte in questa fase · ${ph<4?`poi la fase ${ph+1}`:`poi si passa al ${esc((L[ci+1]||cur).nome.split(" · ")[0])}`}`}</p>
     <p class="label">Studio di stasera</p>
-    ${total>0?`<h2>${nNew?`${nNew} parole nuove`:""}${nNew&&nOld?" + ":""}${nOld?`${nOld} di ripasso`:""}</h2>
-      <p class="muted">${nOld?`Le parole di ripasso sono prese a caso dal ${esc(prevName)}.`:"Inizia dalle carte: guarda la parola, pensa alla risposta, poi girala."}</p>`
+    ${total>0?`<h2>${nNew?`${nNew} parole`:""}${nNew&&nOld?" + ":""}${nOld?`${nOld} di ripasso`:""}</h2>
+      <p class="muted">${nOld?`Le ${nOld} di ripasso sono prese a caso dal ${esc(prevName)}: le vedi in italiano e le scrivi in tedesco.`:FASI[ph].mode==="scelta"?"Per ogni parola scegli la risposta giusta tra 5.":"Per ogni parola scrivi la risposta."}</p>`
      :`<h2>Fatto per stasera, bravo!</h2>
-      <p class="muted">${allDone?"Hai studiato tutte le parole. Continua con i ripassi.":"Domani sera arrivano le prossime 12 parole."}</p>`}
+      <p class="muted">${allDone?"Hai studiato tutte le parole. Continua con i ripassi.":"Domani sera arrivano le prossime 12."}</p>`}
     ${total>0?`<button class="primary big" id="start">Inizia</button>`:""}
     ${due.length?`<button class="big" id="review">Ripassa le parole da rinforzare (${due.length})</button>`:""}
     ${words.some(w=>cardOf(w.id))?`<button class="big" id="free">Ripasso libero (10 parole già viste)</button>`:""}
+    <p class="label" style="margin-top:6px">Per i ripassi extra</p>
     <div class="row"><span class="label">Domanda in</span></div>
     <div class="chips" role="group" aria-label="Direzione">
       ${[["it-de","Italiano → Tedesco"],["de-it","Tedesco → Italiano"],["mix","Misto"]].map(([k,t])=>`<button class="chip" data-dir="${k}" aria-pressed="${dir===k}">${t}</button>`).join("")}
@@ -315,10 +329,10 @@ function vProgressi(){const days=[];for(let i=13;i>=0;i--){const d=addDays(today
 function vListe(){const ci=currentIdx();
   return shell(`
   <section class="sheet"><p class="label">Capitoli, in ordine</p>
-    <p class="small muted">Si va avanti un capitolo alla volta: il successivo si apre quando hai studiato tutte le parole di quello in corso.</p>
-    ${allLists().map((l,i)=>{const ws=wordsOf(l),st=ws.filter(w=>cardOf(w.id)).length;const stato=chapterDone(l)?"Completato":i===ci?"In corso":"Bloccato";
+    <p class="small muted">Ogni capitolo ha 4 fasi: 1 tedesco → italiano a scelta, 2 italiano → tedesco a scelta, 3 scrivi in italiano, 4 scrivi in tedesco. Finita la fase 4 si apre il capitolo successivo.</p>
+    ${allLists().map((l,i)=>{const ws=wordsOf(l),st=phaseCount(l),ph=phaseOf(l);const stato=chapterDone(l)?"Completato":i===ci?"In corso":"Bloccato";
       return `<div class="listitem"><span class="chip" style="min-height:0;padding:4px 10px;font-size:.8rem;${stato==="Completato"?"border-color:var(--ok);color:var(--ok)":stato==="In corso"?"border-color:var(--pen);color:var(--pen)":"color:var(--muted)"}">${stato}</span>
-      <div class="grow"><b>${esc(l.nome)}</b><br><span class="small muted">${st} di ${ws.length} parole studiate</span></div>
+      <div class="grow"><b>${esc(l.nome)}</b><br><span class="small muted">${stato==="Completato"?`${ws.length} parole, tutte e 4 le fasi`:stato==="In corso"?`Fase ${ph} di 4 · ${st} di ${ws.length} parole`:`${ws.length} parole`}</span></div>
       ${BUILTIN.includes(l)?"":`<button class="ghost" data-del="${l.id}">Elimina</button>`}</div>`}).join("")}
   </section>
   <section class="sheet"><p class="label">Aggiungi una lista</p>
@@ -330,28 +344,29 @@ function vListe(){const ci=currentIdx();
 
 /* ---------- quiz ---------- */
 function startQuiz(kind){let items;
-  if(kind==="libero"){const seen=activeWords().filter(w=>cardOf(w.id));items=shuffle(seen).slice(0,10)}
-  else if(kind==="ripasso"){items=shuffle(dueToday()).slice(0,20)}
-  else{const nw=newWords().slice(0,newLeftToday());const nwIds=new Set(nw.map(w=>w.id));
-    const old=sessionDone()?[]:shuffle(oldPool().filter(w=>!nwIds.has(w.id))).slice(0,OLD_PER_NIGHT);
-    items=[...nw,...shuffle(old)]}
+  if(kind==="libero"){const seen=activeWords().filter(w=>cardOf(w.id));items=shuffle(seen).slice(0,10).map(w=>({w}))}
+  else if(kind==="ripasso"){items=shuffle(dueToday()).slice(0,20).map(w=>({w}))}
+  else{const p=phaseOf(currentList()),F=FASI[p];const nw=newWords().slice(0,newLeftToday());
+    const old=sessionDone()?[]:pickHard(oldPool(),OLD_PER_NIGHT);
+    items=[...nw.map(w=>({w,mode:F.mode,dir:F.dir,phase:p})),...old.map(w=>({w,mode:"scrivi",dir:"it-de"}))]}
   if(!items.length)return;
-  Q={queue:items.map(w=>({w,tries:0})),done:0,total:items.length,ok:0,errs:[],cur:null,state:"ask",free:kind!=="sera",kind};nextQ()}
-function pickMode(entry){const m=S.modo;const c=cardOf(entry.w.id);
+  Q={queue:items.map(e=>({...e,tries:0})),done:0,total:items.length,ok:0,errs:[],cur:null,state:"ask",free:kind!=="sera",kind};nextQ()}
+function pickMode(entry){if(entry.mode)return entry.mode;const m=S.modo;const c=cardOf(entry.w.id);
   if(m!=="misto")return m;
   if(!c||c.box<=1)return entry.tries?"scelta":"carte";
   return c.box<=2?"scelta":"scrivi"}
 function pickDir(){return S.direzione==="mix"?(Math.random()<.5?"it-de":"de-it"):S.direzione}
 function nextQ(){if(!Q.queue.length){if(Q.kind==="sera"){S.fatto=Object.assign({},S.fatto,{[today()]:true});save()}view="fine";render();return}
-  const e=Q.queue.shift();Q.cur={...e,mode:pickMode(e),dir:pickDir(),answer:"",result:null,flipped:false};
+  const e=Q.queue.shift();Q.cur={...e,mode:pickMode(e),dir:e.dir||pickDir(),answer:"",result:null,flipped:false};
   if(Q.cur.mode==="scelta"){const pool=allWords().filter(x=>x.id!==e.w.id);const key=Q.cur.dir==="it-de"?"de":"it";
     const pkey=key==="de"?"it":"de";const pn=variants(e.w[pkey]).join("|");
-    const seen=new Set([e.w[key]]);for(const x of pool)if(variants(x[pkey]).join("|")===pn)seen.add(x[key]);const opts=[e.w];for(const x of shuffle(pool)){if(opts.length>=4)break;if(!seen.has(x[key])){seen.add(x[key]);opts.push(x)}}
+    const seen=new Set([e.w[key]]);for(const x of pool)if(variants(x[pkey]).join("|")===pn)seen.add(x[key]);const opts=[e.w];for(const x of shuffle(pool)){if(opts.length>=5)break;if(!seen.has(x[key])){seen.add(x[key]);opts.push(x)}}
     Q.cur.opts=shuffle(opts)}
   view="quiz";render()}
 function answer(correct,extra){const c=Q.cur;c.result=correct?"ok":"bad";c.extra=extra||"";
   if(c.tries===0){grade(c.w,correct);if(correct)Q.ok++;else Q.errs.push(c.w)}
-  if(!correct)Q.queue.splice(Math.min(Q.queue.length,3),0,{w:c.w,tries:c.tries+1});else Q.done++;
+  else if(!correct&&S.cards[c.w.id]){S.cards[c.w.id].ko++;save()}
+  if(!correct)Q.queue.splice(Math.min(Q.queue.length,3),0,{w:c.w,mode:c.mode,dir:c.dir,phase:c.phase,tries:c.tries+1});else{Q.done++;markPass(c.w,c.phase)}
   render()}
 
 function vQuiz(){const c=Q.cur,w=c.w;const askDe=c.dir==="de-it";const prompt=askDe?w.de:w.it;const target=askDe?w.it:w.de;
