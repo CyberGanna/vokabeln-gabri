@@ -81,6 +81,8 @@ async def invia_all_app(nuove) -> str:
                                 headers={"Content-Type": "text/plain;charset=utf-8"})
         r.raise_for_status()
         log.info("Risposta del foglio: %s", r.text[:200])
+        if not r.text.strip().lower().startswith("ok"):
+            return f"⚠️ Il Foglio Google ha risposto: {r.text.strip()[:100]!r} (le parole restano salvate qui)."
         return "Inviate all'app di Gabri ✅"
     except Exception:
         log.exception("Invio al Foglio Google fallito")
