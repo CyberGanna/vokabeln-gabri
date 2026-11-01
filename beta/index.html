@@ -500,7 +500,7 @@ function vQuiz(){const c=Q.cur,w=c.w;const askDe=c.dir==="de-it";const art=c.mod
   }else{
     body=`<form id="typeform" class="row" autocomplete="off"><input type="text" id="typed" class="grow" placeholder="${art?"der, die o das?":askDe?"Scrivi in italiano":"Scrivi in tedesco, con l'articolo"}" value="${esc(c.answer)}" ${c.result?"disabled":""} autocapitalize="off" spellcheck="false" lang="${askDe&&!art?"it":"de"}">
       ${c.result?"":`<button class="primary" type="submit">Controlla</button>`}</form>
-      ${!askDe&&!c.result?`<div class="chips">${["ä","ö","ü","ß"].map(k=>`<button class="chip" data-key="${k}" type="button">${k}</button>`).join("")}<button class="chip" id="dunno" type="button">Non lo so</button></div>`:""}`;
+      ${!askDe&&!c.result?`<div class="chips">${["ä","ö","ü","ß"].map(k=>`<button class="chip" data-key="${k}" type="button">${k}</button>`).join("")}<button class="chip" id="dunno" type="button">Non lo so</button></div><div class="chips">${["Ä","Ö","Ü"].map(k=>`<button class="chip" data-key="${k}" type="button">${k}</button>`).join("")}</div>`:""}`;
   }
   let fb="";
   if(c.result){const msgs={ok:["Giusto!","Richtig!","Super!","Perfetto!"],bad:["Non ancora","Quasi, riprova più tardi"]};
