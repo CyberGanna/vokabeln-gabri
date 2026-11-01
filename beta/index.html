@@ -200,6 +200,8 @@ function allLists(){return [...BUILTIN,...(S.liste||[])]}
 const isDone=id=>!!(S.done||{})[id];
 /* 1.1: una parola fa il round 1 una sera; se lo passa al primo colpo fa il round 2 in una sera successiva; passato anche quello è imparata. */
 const passedR1=id=>!!(S.r1ok||{})[id];
+/* Tutte le parole che Gabri ha già indovinato almeno nel round 1, da tutti i capitoli e dalle foto. */
+function imparateTutte(){return allWords().filter(w=>passedR1(w.id)||isDone(w.id))}
 function chapterDone(l){return wordsOf(l).every(w=>isDone(w.id))}
 function phaseCount(l){return wordsOf(l).filter(w=>isDone(w.id)).length}
 function currentIdx(){const L=allLists();const i=L.findIndex(l=>!chapterDone(l));return i<0?L.length-1:i}
@@ -340,7 +342,8 @@ function vHome(){if(!S.nome)return vNome();const cur=currentList(),ci=currentIdx
       <p class="muted">${allDone?"Hai studiato tutte le parole. Continua con i ripassi.":"Domani sera arrivano le prossime."}</p>`}
     ${total>0?`<button class="primary big" id="start">Inizia</button>`:newWords().length?`<button class="primary big" id="more">Ne voglio fare ancora ${EXTRA_STEP}</button>`:""}
     ${due.length?`<button class="big" id="review">Ripassa le parole da rinforzare (${due.length})</button>`:""}
-    <button class="big" id="flash">Flash card 🇮🇹 → 🇩🇪 (20 carte)</button>
+    <p class="label" style="margin-top:6px">Flash card 🇮🇹 → 🇩🇪</p>
+    <div class="two"><button id="flash">Capitolo<br><span class="small muted">20 carte</span></button><button id="flashimp" ${imparateTutte().length?"":"disabled"}>Le mie parole imparate<br><span class="small muted">${imparateTutte().length?`${Math.min(20,imparateTutte().length)} carte su ${imparateTutte().length}`:"ancora nessuna"}</span></button></div>
     ${words.some(w=>cardOf(w.id))?`<button class="big" id="free">Ripasso libero (10 parole già viste)</button>`:""}
     <p class="label" style="margin-top:6px">Per i ripassi extra</p>
     <div class="row"><span class="label">Domanda in</span></div>
@@ -428,7 +431,8 @@ function vListe(){const ci=currentIdx();
 
 /* ---------- quiz ---------- */
 function startQuiz(kind){let items;
-  if(kind==="flash"){const seen=new Set(),pool=[];for(const w of [...mieWords(),...activeWords()])if(!seen.has(w.id)){seen.add(w.id);pool.push(w)}
+  if(kind==="flashimp"){items=shuffle(imparateTutte()).slice(0,20).map(w=>({w,mode:"carte",dir:"it-de"}))}
+  else if(kind==="flash"){const seen=new Set(),pool=[];for(const w of [...mieWords(),...wordsOf(currentList())])if(!seen.has(w.id)){seen.add(w.id);pool.push(w)}
     const nd=pool.filter(w=>!isDone(w.id)),dn=pool.filter(w=>isDone(w.id));items=[...shuffle(nd),...shuffle(dn)].slice(0,20).map(w=>({w,mode:"carte",dir:"it-de"}))}
   else if(kind==="libero"){const seen=activeWords().filter(w=>cardOf(w.id));items=shuffle(seen).slice(0,10).map(w=>({w}))}
   else if(kind==="ripasso"){items=shuffle(dueToday()).slice(0,20).map(w=>({w}))}
@@ -715,6 +719,7 @@ document.addEventListener("click",e=>{const t=e.target.closest("button,#flip");i
       S=Object.assign(blank(),o);save();render();toast("Progressi ripristinati")}catch(e){toast("Codice non valido: incollalo intero, a partire da VOK1:")}return}
   if(t.id==="free"){startQuiz("libero");return}
   if(t.id==="flash"){startQuiz("flash");return}
+  if(t.id==="flashimp"){startQuiz("flashimp");return}
   if(t.id==="home"){view="home";render();return}
   if(t.id==="quit"){view="home";Q=null;render();return}
   if(t.id==="next"){nextQ();return}
