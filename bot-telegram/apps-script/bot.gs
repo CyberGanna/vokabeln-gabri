@@ -361,7 +361,8 @@ function telegram_(metodo, dati) {
     method: "post", contentType: "application/json", payload: JSON.stringify(dati), muteHttpExceptions: true,
   });
   const j = JSON.parse(r.getContentText());
-  if (!j.ok) throw new Error("Telegram " + metodo + ": " + j.description);
+  // Le risposte ai pulsanti scadono in pochi secondi e il bot passa ogni minuto: quell'errore si ignora.
+  if (!j.ok && metodo !== "answerCallbackQuery") throw new Error("Telegram " + metodo + ": " + j.description);
   return j.result;
 }
 
