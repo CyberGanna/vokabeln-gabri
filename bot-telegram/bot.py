@@ -1,0 +1,173 @@
+"""Bot Telegram "Vocabolario Tedesco".
+
+Mandi la foto di una pagina in tedesco, il bot estrae le parole con un modello di visione,
+scarta i doppioni e le salva nel database SQLite. Funziona in polling: basta lanciarlo
+sul computer con `python bot.py`, non serve un server.
+"""
+
+import asyncio
+import csv
+import io
+import logging
+import os
+
+from dotenv import load_dotenv
+
+load_dotenv()  # prima di importare estrazione, che legge ANTHROPIC_API_KEY
+
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update  # noqa: E402
+from telegram.constants import ChatAction  # noqa: E402
+from telegram.ext import (  # noqa: E402
+    Application, CallbackQueryHandler, CommandHandler, ContextTypes, MessageHandler, filters,
+)
+
+from db import Vocabolario  # noqa: E402
+from estrazione import (  # noqa: E402
+    ISTRUZIONE_VOCABOLARIO, SCHEMA_VOCABOLARIO, EstrazioneFallita, estrai_da_immagine,
+)
+
+logging.basicConfig(format="%(asctime)s %(levelname)s %(message)s", level=logging.INFO)
+logging.getLogger("httpx").setLevel(logging.WARNING)
+log = logging.getLogger("bot")
+
+TOKEN = os.environ["TELEGRAM_TOKEN"]
+FILTRO = os.environ.get("FILTRO", "comuni").strip().upper()
+AUTORIZZATI = {int(x) for x in os.environ.get("UTENTI_AUTORIZZATI", "").replace(" ", "").split(",") if x}
+LIVELLI = ["A1", "A2", "B1", "B2", "C1", "C2"]
+MAX_PULSANTI = 40
+
+vocabolario = Vocabolario(os.environ.get("DB_PATH", "vocabolario.db"))
+
+
+def autorizzato(update: Update) -> bool:
+    return not AUTORIZZATI or (update.effective_user and update.effective_user.id in AUTORIZZATI)
+
+
+def applica_filtro(parole: list[dict]) -> tuple[list[dict], int]:
+    """Restituisce (parole tenute, quante scartate) secondo FILTRO."""
+    if FILTRO == "NESSUNO":
+        tenute = parole
+    elif FILTRO in LIVELLI:
+        soglia = LIVELLI.index(FILTRO)
+        tenute = [p for p in parole if p["livello"] in LIVELLI and LIVELLI.index(p["livello"]) >= soglia]
+    else:  # "COMUNI" (predefinito)
+        tenute = [p for p in parole if not p["molto_comune"] and p["categoria"] != "articolo"]
+    return tenute, len(parole) - len(tenute)
+
+
+def etichetta(p) -> str:
+    art = f"{p['articolo']} " if p["articolo"] else ""
+    return f"{art}{p['forma_base']}"
+
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    uid = update.effective_user.id
+    if not autorizzato(update):
+        await update.message.reply_text(f"Questo bot è privato. Il tuo id Telegram è {uid}.")
+        return
+    await update.message.reply_text(
+        "Ciao! Mandami la foto di una pagina in tedesco e aggiungo le parole al vocabolario.\n\n"
+        "Comandi:\n/parole – ultime 20 parole\n/esporta – tutto il vocabolario in CSV\n\n"
+        f"Parole salvate: {vocabolario.conta()}. Filtro attivo: {FILTRO.lower()}.\n"
+        f"Il tuo id Telegram è {uid}."
+    )
+
+
+async def ricevi_foto(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not autorizzato(update):
+        return
+    msg = update.message
+    if msg.photo:
+        # Telegram manda la stessa foto in più risoluzioni: l'ultima è la più grande.
+        file_id, media_type = msg.photo[-1].file_id, "image/jpeg"
+    else:  # immagine mandata come file (non compressa, migliore per l'OCR)
+        doc = msg.document
+        if doc.mime_type not in ("image/jpeg", "image/png", "image/webp", "image/gif"):
+            await msg.reply_text("Mandami una foto (JPEG o PNG).")
+            return
+        file_id, media_type = doc.file_id, doc.mime_type
+
+    attesa = await msg.reply_text("Sto leggendo la pagina…")
+    await context.bot.send_chat_action(msg.chat_id, ChatAction.TYPING)
+    tg_file = await context.bot.get_file(file_id)
+    immagine = bytes(await tg_file.download_as_bytearray())
+
+    try:
+        dati = await asyncio.to_thread(
+            estrai_da_immagine, immagine, media_type, ISTRUZIONE_VOCABOLARIO, SCHEMA_VOCABOLARIO)
+    except EstrazioneFallita as e:
+        await attesa.edit_text(f"Non sono riuscito a leggere la pagina: {e}")
+        return
+    except Exception:
+        log.exception("Errore durante l'estrazione")
+        await attesa.edit_text("Errore durante la lettura della foto. Riprova tra poco.")
+        return
+
+    tenute, filtrate = applica_filtro(dati["parole"])
+    nuove, doppie = vocabolario.aggiungi(tenute, update.effective_user.id)
+
+    righe = [f"Ho aggiunto {len(nuove)} parole nuove."]
+    if doppie:
+        righe.append(f"{len(doppie)} c'erano già.")
+    if filtrate:
+        righe.append(f"{filtrate} scartate dal filtro ({FILTRO.lower()}).")
+    if nuove:
+        righe.append("")
+        righe += [f"• {etichetta(p)} – {p['traduzione']}" for p in nuove]
+        righe.append("\nTocca una parola per toglierla.")
+    testo = "\n".join(righe)[:4000]
+
+    pulsanti = [[InlineKeyboardButton(f"❌ {etichetta(p)}", callback_data=f"del:{p['id']}")]
+                for p in nuove[:MAX_PULSANTI]]
+    await attesa.edit_text(testo, reply_markup=InlineKeyboardMarkup(pulsanti) if pulsanti else None)
+
+
+async def scarta(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    if not autorizzato(update):
+        await query.answer()
+        return
+    parola_id = int(query.data.split(":", 1)[1])
+    riga = vocabolario.elimina(parola_id)
+    await query.answer(f"Tolta: {etichetta(riga)}" if riga else "Già tolta")
+    # Toglie il pulsante della parola eliminata, lascia gli altri.
+    tastiera = [r for r in query.message.reply_markup.inline_keyboard if r[0].callback_data != query.data]
+    await query.edit_message_reply_markup(InlineKeyboardMarkup(tastiera) if tastiera else None)
+
+
+async def parole(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not autorizzato(update):
+        return
+    ultime = vocabolario.ultime(20)
+    if not ultime:
+        await update.message.reply_text("Il vocabolario è ancora vuoto.")
+        return
+    await update.message.reply_text("\n".join(f"• {etichetta(p)} – {p['traduzione']}" for p in ultime))
+
+
+async def esporta(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not autorizzato(update):
+        return
+    buf = io.StringIO()
+    w = csv.writer(buf, delimiter=";")
+    w.writerow(["tedesco", "plurale", "italiano", "categoria", "livello", "esempio", "aggiunta il"])
+    for p in vocabolario.tutte():
+        w.writerow([etichetta(p), p["plurale"], p["traduzione"], p["categoria"], p["livello"],
+                    p["esempio"], p["creata_il"]])
+    dati = buf.getvalue().encode("utf-8-sig")  # con BOM, così Excel legge bene gli accenti
+    await update.message.reply_document(dati, filename="vocabolario.csv")
+
+
+def main() -> None:
+    app = Application.builder().token(TOKEN).build()
+    app.add_handler(CommandHandler(["start", "help"], start))
+    app.add_handler(CommandHandler("parole", parole))
+    app.add_handler(CommandHandler("esporta", esporta))
+    app.add_handler(MessageHandler(filters.PHOTO | filters.Document.IMAGE, ricevi_foto))
+    app.add_handler(CallbackQueryHandler(scarta, pattern=r"^del:\d+$"))
+    log.info("Bot avviato (filtro: %s). Ctrl+C per fermarlo.", FILTRO.lower())
+    app.run_polling()
+
+
+if __name__ == "__main__":
+    main()
