@@ -189,14 +189,17 @@ async def esporta(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 def main() -> None:
-    app = Application.builder().token(TOKEN).build()
+    app = (Application.builder().token(TOKEN)
+           .connect_timeout(30).read_timeout(30).write_timeout(60).pool_timeout(30)
+           .get_updates_connect_timeout(30).get_updates_read_timeout(60)
+           .build())
     app.add_handler(CommandHandler(["start", "help"], start))
     app.add_handler(CommandHandler("parole", parole))
     app.add_handler(CommandHandler("esporta", esporta))
     app.add_handler(MessageHandler(filters.PHOTO | filters.Document.IMAGE, ricevi_foto))
     app.add_handler(CallbackQueryHandler(scarta, pattern=r"^del:\d+$"))
     log.info("Bot avviato (filtro: %s). Ctrl+C per fermarlo.", FILTRO.lower())
-    app.run_polling()
+    app.run_polling(bootstrap_retries=-1)  # se la rete non risponde, riprova invece di chiudersi
 
 
 if __name__ == "__main__":
