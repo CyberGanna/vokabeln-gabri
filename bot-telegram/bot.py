@@ -8,8 +8,11 @@ sul computer con `python bot.py`, non serve un server.
 import asyncio
 import csv
 import io
+import json
 import logging
 import os
+
+import httpx
 
 from dotenv import load_dotenv
 
@@ -35,6 +38,9 @@ FILTRO = os.environ.get("FILTRO", "comuni").strip().upper()
 AUTORIZZATI = {int(x) for x in os.environ.get("UTENTI_AUTORIZZATI", "").replace(" ", "").split(",") if x}
 LIVELLI = ["A1", "A2", "B1", "B2", "C1", "C2"]
 MAX_PULSANTI = 40
+APP_URL = os.environ.get("APP_URL", "").strip()      # Apps Script del Foglio Google dell'app di Gabri
+FAMIGLIA = os.environ.get("FAMIGLIA", "").strip()    # codice famiglia usato nell'app
+TIPI_APP = {"sostantivo": "s", "aggettivo": "a", "verbo": "v", "avverbio": "av"}
 
 vocabolario = Vocabolario(os.environ.get("DB_PATH", "vocabolario.db"))
 
@@ -58,6 +64,27 @@ def applica_filtro(parole: list[dict]) -> tuple[list[dict], int]:
 def etichetta(p) -> str:
     art = f"{p['articolo']} " if p["articolo"] else ""
     return f"{art}{p['forma_base']}"
+
+
+async def invia_all_app(nuove) -> str:
+    """Manda le parole nuove al Foglio Google, da cui le legge l'app di Gabri."""
+    if not (APP_URL and FAMIGLIA and nuove):
+        return ""
+    corpo = {
+        "app": "vokabeln-gabri", "tipo": "parole", "famiglia": FAMIGLIA,
+        "parole": [{"de": etichetta(p), "it": p["traduzione"], "tipo": TIPI_APP.get(p["categoria"], "x")}
+                   for p in nuove],
+    }
+    try:
+        async with httpx.AsyncClient(follow_redirects=True, timeout=30) as http:
+            r = await http.post(APP_URL, content=json.dumps(corpo, ensure_ascii=False).encode("utf-8"),
+                                headers={"Content-Type": "text/plain;charset=utf-8"})
+        r.raise_for_status()
+        log.info("Risposta del foglio: %s", r.text[:200])
+        return "Inviate all'app di Gabri ✅"
+    except Exception:
+        log.exception("Invio al Foglio Google fallito")
+        return "⚠️ Non sono riuscito a mandarle all'app (restano salvate qui)."
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -115,6 +142,9 @@ async def ricevi_foto(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         righe.append("")
         righe += [f"• {etichetta(p)} – {p['traduzione']}" for p in nuove]
         righe.append("\nTocca una parola per toglierla.")
+    esito_app = await invia_all_app(nuove)
+    if esito_app:
+        righe.append(esito_app)
     testo = "\n".join(righe)[:4000]
 
     pulsanti = [[InlineKeyboardButton(f"❌ {etichetta(p)}", callback_data=f"del:{p['id']}")]

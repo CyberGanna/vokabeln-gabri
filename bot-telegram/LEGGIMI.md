@@ -55,6 +55,10 @@ Nel file `.env`, `FILTRO` decide cosa entra:
 
 Per i libri di Gabri (A1) va bene `comuni`; con `B1` si perderebbe quasi tutto.
 
+## Collegamento con l'app di Gabri
+
+Se nel file `.env` metti `APP_URL` (già compilato) e `FAMIGLIA` (il codice famiglia che usi nel tab Genitori dell'app), dopo ogni foto il bot manda le parole nuove al Foglio Google. L'app le aggiunge da sola e la sera dopo Gabri le studia per prime. Se lasci `FAMIGLIA` vuoto, le parole restano solo nel vocabolario del bot.
+
 ## Come è fatto
 
 - `bot.py`: Telegram (polling, nessun server), riceve la foto, risponde e gestisce i pulsanti
