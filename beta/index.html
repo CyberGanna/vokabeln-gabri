@@ -328,7 +328,7 @@ function vHome(){if(!S.nome)return vNome();const cur=currentList(),ci=currentIdx
     </div>
     <div class="row"><span class="label">Tipo di quiz</span></div>
     <div class="chips" role="group" aria-label="Tipo di quiz">
-      ${[["misto","Misto"],["scrivi","Scrivi"],["carte","Carte"]].map(([k,t])=>`<button class="chip" data-modo="${k}" aria-pressed="${modo===k}">${t}</button>`).join("")}
+      ${[["misto","Misto"],["scelta","Scelta multipla"],["scrivi","Scrivi"],["carte","Carte"]].map(([k,t])=>`<button class="chip" data-modo="${k}" aria-pressed="${modo===k}">${t}</button>`).join("")}
     </div>
   </section>
   <section class="sheet">
@@ -438,9 +438,9 @@ async function sendOutbox(){if(!REPORT_URL||!S.invia||!(S.outbox||[]).length||se
   try{while(S.outbox.length){await fetch(REPORT_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(S.outbox[0])});S.outbox=S.outbox.slice(1);save()}}catch(e){}
   sendOutbox.busy=false}
 function pickMode(entry){if(entry.mode)return entry.mode;const m=S.modo;const c=cardOf(entry.w.id);
-  if(m!=="misto")return m==="scelta"?"scrivi":m; // 1.1: niente scelta multipla
-  if(!c||c.box<=1)return entry.tries?"scrivi":"carte";
-  return "scrivi"}
+  if(m!=="misto")return m;
+  if(!c||c.box<=1)return entry.tries?"scelta":"carte";
+  return c.box<=2?"scelta":"scrivi"}
 function pickDir(){return S.direzione==="mix"?(Math.random()<.5?"it-de":"de-it"):S.direzione}
 /* Risposte sbagliate "furbe": stesso tipo di parola (nome/verbo/altro), stesso articolo,
    stesso capitolo, lunghezza e iniziale simili. Così non si indovina per esclusione. */
