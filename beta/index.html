@@ -489,7 +489,7 @@ function vQuiz(){const c=Q.cur,w=c.w;const askDe=c.dir==="de-it";const art=c.mod
       <input type="text" id="typed" placeholder="Scrivi in italiano" value="${esc(c.answer)}" ${c.result?"disabled":""} autocapitalize="off" spellcheck="false" lang="it">
       <p class="label">Che parola è?</p>
       <div class="chips">${Object.entries(TIPO_NOMI).map(([k,t])=>{const cls=c.result?(k===tipoOf(w)?"ok":c.tipo===k?"bad":""):"";return `<button type="button" class="chip ${cls}" data-tipo="${k}" aria-pressed="${c.tipo===k}" ${c.result?"disabled":""}>${t}</button>`}).join("")}</div>
-      ${c.tipo==="s"||(c.result&&hasArt)?`<p class="label">Articolo</p><div class="chips">${["der","die","das"].map(a=>{const cls=c.result?(a===artOf(w.de)?"ok":c.art===a?"bad":""):"";return `<button type="button" class="chip art-${a} ${cls}" data-art="${a}" aria-pressed="${c.art===a}" ${c.result?"disabled":""}>${a}</button>`}).join("")}</div>`:""}
+      ${c.tipo==="s"||(c.result&&hasArt)?`<p class="label">Articolo</p><div class="chips">${["der","die","das"].map(a=>{const cls=c.result?(a===artOf(w.de)?"ok":c.art===a?"bad":""):"";return `<button type="button" class="chip art-${a} ${cls}" data-art="${a}" aria-pressed="${c.art===a}" ${c.result?"disabled":""}>${a}</button>`}).join("")}${!c.result&&c.art?`<button type="button" class="chip" data-art="none" aria-label="Cancella l'articolo scelto">✕</button>`:""}</div>`:""}
       ${c.result?"":`<button class="primary big" type="submit" ${!c.tipo||(c.tipo==="s"&&hasArt&&!c.art)?"disabled":""}>Controlla</button>`}
     </form>`;
   }else if(c.mode==="scelta"){
@@ -686,7 +686,7 @@ document.addEventListener("click",e=>{const t=e.target.closest("button,#flip");i
 });
 document.addEventListener("input",e=>{if(e.target.id==="typed"&&Q&&Q.cur)Q.cur.answer=e.target.value});
 document.addEventListener("click",e=>{const t=e.target.closest("[data-tipo],[data-art]");if(!t||!Q||!Q.cur||Q.cur.result)return;
-  if(t.dataset.tipo){Q.cur.tipo=t.dataset.tipo;if(Q.cur.tipo!=="s")Q.cur.art=null}else Q.cur.art=t.dataset.art;render()});
+  if(t.dataset.tipo){Q.cur.tipo=t.dataset.tipo;if(Q.cur.tipo!=="s")Q.cur.art=null}else Q.cur.art=t.dataset.art==="none"?null:t.dataset.art;render()});
 document.addEventListener("submit",e=>{if(e.target.id==="mieform"){e.preventDefault();
     const de=$("#miede").value.trim().replace(/\s+/g," "),it=$("#mieit").value.trim().replace(/\s+/g," ");
     if(!de||!it){toast("Scrivi la parola in tedesco e in italiano");return}
