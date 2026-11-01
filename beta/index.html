@@ -220,7 +220,15 @@ async function loadBotWords(){if(!REPORT_URL||!S.famiglia)return;
     const known=new Set([...allLists().flatMap(l=>l.parole.map(p=>norm(p[0].replace(/^(der|die|das)\s+/i,"").replace(/\([^)]*\)/g,"")))),...[...EXTRA,...(S.mie||[])].map(p=>norm(p[0].replace(/^(der|die|das)\s+/i,"")))]);
     const out=[];for(const p of j.parole||[]){const k=norm(String(p.de).replace(/^(der|die|das)\s+/i,"").replace(/\([^)]*\)/g,""));if(!k||known.has(k))continue;known.add(k);
       const tp=/^(der|die|das)\s/i.test(p.de)?"s":(["s","a","v","av","x"].includes(p.tipo)?p.tipo:"x");out.push([String(p.de),String(p.it),tp])}
-    const before=(S.dalbot||[]).length;S.dalbot=out;save();if(out.length>before){toast(`${out.length-before} parole nuove dal bot`);if(view==="home"||view==="liste")render()}}catch(e){}}
+    const oldK=new Set((S.dalbot||[]).map(p=>p[0]));const nuove=out.filter(p=>!oldK.has(p[0]));S.dalbot=out;save();
+    if(nuove.length){toast(`${nuove.length} parole nuove dal bot`);if(view==="home"||view==="liste")render()}return nuove}catch(e){return null}}
+/* Dopo l'invio di una foto: controlla ogni 10 secondi per 4 minuti se il bot ha aggiunto parole, e lo mostra nel tab Foto. */
+let attesa=null; // {t0, nuove:[], fatto}
+async function aspettaParole(){if(attesa&&attesa.timer)clearTimeout(attesa.timer);attesa={t0:Date.now(),nuove:[],fatto:false};if(view==="foto")render();
+  const giro=async()=>{const n=await loadBotWords();if(n&&n.length){attesa.nuove.push(...n);attesa.fatto=true;if(view==="foto")render();return}
+    if(Date.now()-attesa.t0>240000){attesa.fatto=true;if(view==="foto")render();return}
+    attesa.timer=setTimeout(giro,10000)};
+  attesa.giro=giro;attesa.timer=setTimeout(giro,8000)}
 const mieWords=()=>mieList().map(([de,it])=>({id:cardId(de,it),de,it,lista:"mie"}));
 function allWords(){const seen=new Set(),out=[];for(const l of [...allLists(),{...MIE,parole:mieList()}])for(const w of wordsOf(l))if(!seen.has(w.id)){seen.add(w.id);out.push(w)}return out}
 const cardOf=id=>S.cards[id]||null;
@@ -571,12 +579,15 @@ function vFoto(){const bot=S.botTg||"";
   <section class="sheet pop"><h2>Foto di una pagina</h2>
     <p class="muted">1. Fai la foto della pagina. 2. Tocca "Manda su Telegram" e scegli la chat con il bot.</p>
     <label class="btn primary big filebtn">📷 ${foto?"Rifai la foto":"Fai la foto"}<input type="file" id="fotoin" accept="image/*" capture="environment" hidden></label>
+    ${attesa?(!attesa.fatto?`<div class="feedback pop"><span>⏳ Aspetto le parole dal bot…</span><span class="small muted">Di solito ci vuole un minuto. Puoi restare qui.</span></div>`
+      :attesa.nuove.length?`<div class="feedback ok pop"><span>✓ Arrivate ${attesa.nuove.length} parole nuove! Le studi per prime dalla prossima sera.</span><span class="ans">${attesa.nuove.map(([de,it])=>`${deHtml(de)} = ${esc(it)}`).join("<br>")}</span></div>`
+      :`<div class="feedback bad pop"><span>Nessuna parola nuova arrivata.</span><span class="small">Forse la pagina aveva solo parole che l'app conosce già, oppure il bot non ha risposto. Controlla su Telegram.</span></div><button id="aspettaancora">Controlla di nuovo</button>`):""}
     ${foto?`<img src="${foto.url}" alt="Foto della pagina" class="fotoprev"><button class="primary big" id="fotosend">Manda su Telegram</button>`:""}
     <p class="small muted">Bot: <b>@${esc(bot)}</b> · <button class="ghost" id="botchange" style="padding:0;min-height:0">cambia</button> · <a href="https://t.me/${encodeURIComponent(bot)}" target="_blank" rel="noopener">apri il bot</a></p>
   </section>`)}
 async function sendFoto(){const bot=S.botTg;if(!foto)return;
-  try{if(navigator.canShare&&navigator.canShare({files:[foto.file]})){await navigator.share({files:[foto.file],title:"Pagina del libro"});toast("Fatto! Controlla la risposta del bot su Telegram");return}}catch(e){if(e&&e.name==="AbortError")return}
-  toast("Apro Telegram: allega la foto nella chat con il bot");setTimeout(()=>location.href="https://t.me/"+encodeURIComponent(bot),900)}
+  try{if(navigator.canShare&&navigator.canShare({files:[foto.file]})){await navigator.share({files:[foto.file],title:"Pagina del libro"});aspettaParole();return}}catch(e){if(e&&e.name==="AbortError")return}
+  aspettaParole();toast("Apro Telegram: allega la foto nella chat con il bot");setTimeout(()=>location.href="https://t.me/"+encodeURIComponent(bot),900)}
 async function loadDash(){if(!REPORT_URL||!S.famiglia)return;G={rows:G&&G.rows||null,loading:true};if(view==="genitori")render();
   try{const r=await fetch(REPORT_URL+"?famiglia="+encodeURIComponent(S.famiglia)+"&t="+Date.now());const j=await r.json();G={rows:(j.rows||[]).filter(x=>x.data),at:new Date()}}
   catch(e){G={rows:G&&G.rows,err:true}}
@@ -713,6 +724,7 @@ document.addEventListener("click",e=>{const t=e.target.closest("button,#flip");i
   if(t.dataset.opt!==undefined){if(Q.cur.result)return;Q.cur.picked=+t.dataset.opt;const y=window.scrollY;render();window.scrollTo(0,y);return}
   if(t.id==="confirm"){if(Q.cur.picked==null||Q.cur.result)return;answer(Q.cur.opts[Q.cur.picked].id===Q.cur.w.id);return}
   if(t.id==="fotosend"){sendFoto();return}
+  if(t.id==="aspettaancora"){aspettaParole();return}
   if(t.id==="botchange"){S.botTg="";save();render();return}
   if(t.dataset.mietipo){mieTipo=t.dataset.mietipo;document.querySelectorAll("[data-mietipo]").forEach(b=>b.setAttribute("aria-pressed",b===t));return}
   if(t.dataset.miedel){S.mie=(S.mie||[]).filter(m=>m[0]!==t.dataset.miedel);save();render();return}
@@ -756,7 +768,8 @@ if(e.target.id==="famform"){e.preventDefault();const v=$("#faminput").value.trim
 document.addEventListener("keydown",e=>{if(view!=="quiz"||!Q||!Q.cur)return;
   if(e.key==="Enter"&&Q.cur.result&&e.target.id!=="typed"){e.preventDefault();nextQ()}
   if(Q.cur.mode==="carte"&&!Q.cur.result&&(e.key===" "||e.key==="Enter")&&!Q.cur.flipped){e.preventDefault();Q.cur.flipped=true;render()}});
-document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden")flush()});
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden")flush();
+  else{if(attesa&&!attesa.fatto&&attesa.giro){clearTimeout(attesa.timer);attesa.giro()}else loadBotWords()}});
 
 if(!S.botTg)S.botTg="vokabeln_gabri_bot";
 render();connect();sendOutbox();loadBotWords();
