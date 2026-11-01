@@ -68,6 +68,8 @@ p{margin:0}
 .db-pill.ok{background:var(--ok-soft);color:var(--ok)}.db-pill.mid{background:var(--pen-soft);color:var(--pen)}.db-pill.bad{background:var(--bad-soft);color:var(--bad)}
 .tipoform{display:flex;flex-direction:column;gap:10px}.tipoform input{width:100%;box-sizing:border-box}
 .chip.ok{border-color:var(--ok)!important;background:var(--ok-soft);color:var(--ok)}.chip.bad{border-color:var(--bad)!important;background:var(--bad-soft);color:var(--bad)}
+.filebtn{display:flex;align-items:center;justify-content:center;cursor:pointer;text-align:center}
+.fotoprev{display:block;width:100%;max-height:50vh;object-fit:contain;border-radius:12px;border:1px solid var(--line)}
 .rounds{margin:0;padding-left:1.3em;display:grid;gap:2px}
 .phases{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}.phases span{height:6px;border-radius:99px;background:var(--grid)}.phases .done{background:var(--ok)}.phases .now{background:var(--pen)}
 header.top{display:flex;align-items:center;justify-content:space-between;gap:12px}
@@ -196,6 +198,8 @@ let resetAsk=false, db=null, view="home", Q=null, saving=false, dirty=false, sav
 
 function allLists(){return [...BUILTIN,...(S.liste||[])]}
 const isDone=id=>!!(S.done||{})[id];
+/* 1.1: una parola fa il round 1 una sera; se lo passa al primo colpo fa il round 2 in una sera successiva; passato anche quello è imparata. */
+const passedR1=id=>!!(S.r1ok||{})[id];
 function chapterDone(l){return wordsOf(l).every(w=>isDone(w.id))}
 function phaseCount(l){return wordsOf(l).filter(w=>isDone(w.id)).length}
 function currentIdx(){const L=allLists();const i=L.findIndex(l=>!chapterDone(l));return i<0?L.length-1:i}
@@ -291,6 +295,7 @@ function shell(inner){return `
     <button data-go="home" ${view==="home"?'aria-current="page"':""}>Stasera</button>
     <button data-go="progressi" ${view==="progressi"?'aria-current="page"':""}>Progressi</button>
     <button data-go="liste" ${view==="liste"?'aria-current="page"':""}>Liste</button>
+    <button data-go="foto" ${view==="foto"?'aria-current="page"':""}>Foto</button>
     <button data-go="genitori" ${view==="genitori"?'aria-current="page"':""}>Genitori</button>
   </nav>${inner}`}
 
@@ -314,7 +319,7 @@ function vHome(){if(!S.nome)return vNome();const cur=currentList(),ci=currentIdx
     <p class="label">Studio di stasera</p>
     ${total>0?`<h2>${nNew?`${nNew} parole`:""}${nNew&&nOld?" + ":""}${nOld?`${nOld} di ripasso`:""} a gruppi di ${GRUPPO}</h2>
       ${wrongPending()?`<p class="small" style="color:var(--margin);font-weight:700">Si parte dalle ${Math.min(wrongPending(),nNew)} sbagliate l'ultima volta.</p>`:""}
-      <p class="small muted">Per ogni gruppo di ${GRUPPO} parole:</p><ol class="small muted rounds">${[1,2].map(i=>`<li>${esc(FASI[i].nome)}</li>`).join("")}</ol>
+      <p class="small muted">Ogni parola fa prima il round 1; quando lo indovina, una sera dopo fa il round 2. È imparata quando li ha giusti tutti e due.</p><ol class="small muted rounds">${[1,2].map(i=>`<li>${esc(FASI[i].nome)}</li>`).join("")}</ol>
       ${nOld?`<p class="small muted">Le ${nOld} di ripasso sono prese dal ${esc(prevName)}, prima quelle sbagliate più spesso.</p>`:""}`
      :`<h2>Fatto per stasera, bravo!</h2>
       <p class="muted">${allDone?"Hai studiato tutte le parole. Continua con i ripassi.":"Domani sera arrivano le prossime."}</p>`}
@@ -358,6 +363,8 @@ function vProgressi(){const days=[];for(let i=13;i>=0;i--){const d=addDays(today
     <div class="stats"><div class="stat"><b>${streak()}</b><span class="small muted">sere di fila</span></div>
       <div class="stat"><b>${tot}</b><span class="small muted">risposte date</span></div>
       <div class="stat"><b>${tot?Math.round(ok/tot*100):0}%</b><span class="small muted">giuste</span></div></div>
+    ${(()=>{const aw=allWords(),n=aw.length,de=aw.filter(w=>passedR1(w.id)||isDone(w.id)).length,it=aw.filter(w=>isDone(w.id)).length;
+      return `<p class="label">Parole scritte giuste, sul totale</p><div class="stats"><div class="stat"><b>${de}<span class="muted" style="font-size:1rem"> / ${n}</span></b><span class="small muted">🇩🇪 TED → 🇮🇹 ITA</span></div><div class="stat"><b>${it}<span class="muted" style="font-size:1rem"> / ${n}</span></b><span class="small muted">🇮🇹 ITA → 🇩🇪 TED</span></div></div>`})()}
   </section>
   <section class="sheet"><p class="label">Per lista</p>
     ${allLists().map(l=>{const ws=wordsOf(l);return `<div class="listitem"><div class="grow"><h3>${esc(l.nome)}</h3><p class="small muted">${learned(ws)} di ${ws.length} sicure</p></div></div>${boxBar(ws)}`}).join("")}
@@ -394,34 +401,35 @@ function vListe(){const ci=currentIdx();
     ${mie.length?`<p class="label">Le mie parole (${mie.length})</p>${mie.slice().reverse().map(([de,it,tp])=>`<div class="listitem"><div class="grow" style="min-width:0">${deHtml(de)} <span class="muted">= ${esc(it)}</span><br><span class="small muted">${TIPO_NOMI[tp]||""}${isDone(cardId(de,it))?" · imparata":""}</span></div><button class="ghost" data-miedel="${esc(de)}">Elimina</button></div>`).join("")}`:""}
   </section>
   <section class="sheet"><p class="label">Capitoli, in ordine</p>
-    <p class="small muted">Ogni sera 20 parole, a gruppi di 5. Per ogni gruppo: round 1 vedi il tedesco, scrivi l'italiano e scegli che parola è (per i nomi anche der, die o das); round 2 dall'italiano scrivi il tedesco, i nomi con l'articolo. Una parola è imparata se non la sbagli mai al primo colpo. Imparate tutte, si apre il capitolo successivo.</p>
+    <p class="small muted">Ogni sera 20 parole, a gruppi di 5. Round 1: vedi il tedesco, scrivi l'italiano e scegli che parola è (per i nomi anche der, die o das). Quando una parola passa il round 1, una sera dopo fa il round 2: dall'italiano scrivi il tedesco, i nomi con l'articolo. È imparata quando passa tutti e due al primo colpo. Imparate tutte, si apre il capitolo successivo.</p>
     ${allLists().map((l,i)=>{const ws=wordsOf(l),st=phaseCount(l);const stato=chapterDone(l)?"Completato":i===ci?"In corso":"Bloccato";
       return `<div class="listitem"><span class="chip" style="min-height:0;padding:4px 10px;font-size:.8rem;${stato==="Completato"?"border-color:var(--ok);color:var(--ok)":stato==="In corso"?"border-color:var(--pen);color:var(--pen)":"color:var(--muted)"}">${stato}</span>
       <div class="grow"><b>${esc(l.nome)}</b><br><span class="small muted">${stato==="Completato"?`${ws.length} parole imparate`:stato==="In corso"?`${st} di ${ws.length} parole imparate`:`${ws.length} parole`}</span></div>
       ${BUILTIN.includes(l)?"":`<button class="ghost" data-del="${l.id}">Elimina</button>`}</div>`}).join("")}
   </section>
-  <section class="sheet"><p class="label">Aggiungi una lista</p>
-    <input type="text" id="newname" placeholder="Nome della lista, es. Kapitel 3 · Familie">
-    <textarea id="newtext" placeholder="Una parola per riga, tedesco = italiano&#10;der Hund = il cane&#10;die Katze = il gatto&#10;laufen = correre"></textarea>
-    <p class="small muted">Separatori accettati: <code>=</code> <code>;</code> <code>:</code> tabulazione o trattino. Più traduzioni con <code>/</code>. Metti sempre l'articolo (der, die, das).</p>
-    <button class="primary" id="addlist">Aggiungi lista</button>
   </section>`)}
 
 /* ---------- quiz ---------- */
 function startQuiz(kind){let items;
   if(kind==="libero"){const seen=activeWords().filter(w=>cardOf(w.id));items=shuffle(seen).slice(0,10).map(w=>({w}))}
   else if(kind==="ripasso"){items=shuffle(dueToday()).slice(0,20).map(w=>({w}))}
-  else{const nw=newWords().slice(0,newLeftToday());
+  else{const lim=newLeftToday(),all=newWords();const r2=all.filter(w=>passedR1(w.id)).slice(0,Math.ceil(lim/2));const r1=all.filter(w=>!passedR1(w.id)).slice(0,lim-r2.length);
+    const nw=[...r2,...r1,...all.filter(w=>passedR1(w.id)).slice(r2.length)].slice(0,lim); // metà round 2, il resto round 1
     const old=sessionDone()?[]:pickHard(oldPool(),OLD_PER_NIGHT);const batch=[...nw,...old];if(!batch.length)return;
-    const rounds=[];for(let i=0;i<batch.length;i+=GRUPPO){const g=batch.slice(i,i+GRUPPO);for(const rd of [1,2])rounds.push({rd,words:g,g:i/GRUPPO+1,ng:Math.ceil(batch.length/GRUPPO)})}
+    const oldIds=new Set(old.map(w=>w.id));const rdOf=w=>oldIds.has(w.id)||passedR1(w.id)?2:1;
+    const ch=a=>{const o=[];for(let i=0;i<a.length;i+=GRUPPO)o.push(a.slice(i,i+GRUPPO));return o};
+    const c1=ch(batch.filter(w=>rdOf(w)===1)),c2=ch(batch.filter(w=>rdOf(w)===2));const rounds=[];
+    for(let i=0;i<Math.max(c1.length,c2.length);i++){if(c1[i])rounds.push({rd:1,words:c1[i]});if(c2[i])rounds.push({rd:2,words:c2[i]})}
+    rounds.forEach((x,i)=>{x.g=i+1;x.ng=rounds.length});
     Q={kind,batch,rounds,ri:0,bad:new Set(),ok:0,errs:[],cur:null,free:false,t0:Date.now(),rs:{},asked:0};startRound();return}
   if(!items.length)return;
   Q={queue:items.map(e=>({...e,tries:0})),done:0,total:items.length,ok:0,errs:[],cur:null,state:"ask",free:kind!=="sera",kind};nextQ()}
 function startRound(){const st=Q.rounds[Q.ri],rd=st.rd,F=FASI[rd];
   const items=shuffle(st.words).map(w=>({w,mode:F.mode,dir:F.dir,phase:rd,tries:0}));
   Q.queue=items;Q.total=items.length;Q.done=0;nextQ()}
-function finishSera(){const t=today();S.tent=Object.assign({},S.tent);S.wrong=Object.assign({},S.wrong);S.done=Object.assign({},S.done);
-  for(const w of Q.batch){S.tent[w.id]={d:t};if(Q.bad.has(w.id))S.wrong[w.id]=true;else{delete S.wrong[w.id];S.done[w.id]=S.done[w.id]||t}}
+function finishSera(){const t=today();S.tent=Object.assign({},S.tent);S.wrong=Object.assign({},S.wrong);S.done=Object.assign({},S.done);S.r1ok=Object.assign({},S.r1ok);
+  const rd={};for(const st of Q.rounds)for(const w of st.words)rd[w.id]=st.rd;
+  for(const w of Q.batch){S.tent[w.id]={d:t};if(Q.bad.has(w.id))S.wrong[w.id]=true;else{delete S.wrong[w.id];if(rd[w.id]===1)S.r1ok[w.id]=t;else S.done[w.id]=S.done[w.id]||t}}
   S.fatto=Object.assign({},S.fatto,{[t]:true});save();report()}
 /* Invio dei risultati per la dashboard dei genitori (tab Genitori).
    Ogni famiglia sceglie un codice; il telefono del ragazzo invia con quel codice,
@@ -508,7 +516,7 @@ function vQuiz(){const c=Q.cur,w=c.w;const askDe=c.dir==="de-it";const art=c.mod
     fb=`<div class="feedback ${c.result} pop"><span>${c.extra||m}</span><span class="ans">${deHtml(w.de)} = ${esc(w.it)}</span></div>
       <button class="primary big" id="next">${Q.queue.length?"Avanti":"Fine"}</button>`}
   return `
-  <div class="progress"><button class="ghost" id="quit" aria-label="Esci dal quiz">✕ Esci</button><div class="bar"><span style="width:${pct}%;background:var(--ok)"></span></div><span class="small muted" style="font-variant-numeric:tabular-nums">${Q.rounds?`G${Q.rounds[Q.ri].g}/${Q.rounds[Q.ri].ng} R${Q.rounds[Q.ri].rd} · `:""}${Q.done}/${Q.total}</span></div>
+  <div class="progress"><button class="ghost" id="quit" aria-label="Esci dal quiz">✕ Esci</button><div class="bar"><span style="width:${pct}%;background:var(--ok)"></span></div><span class="small muted" style="font-variant-numeric:tabular-nums">${Q.rounds?`G${Q.rounds[Q.ri].g}/${Q.rounds[Q.ri].ng} · R${Q.rounds[Q.ri].rd} · `:""}${Q.done}/${Q.total}</span></div>
   <section class="sheet pop">
     <div class="prompt"><p class="label">${art?"Qual è l'articolo?":askDe?"Cosa vuol dire?":"Come si dice in tedesco?"}</p>
       <p class="word">${tipo?(c.result?deHtml(w.de):esc(prompt)):art?`<span class="muted">___</span> ${esc(prompt)}`:askDe?deHtml(prompt):esc(prompt)}</p>
@@ -520,9 +528,9 @@ function vQuiz(){const c=Q.cur,w=c.w;const askDe=c.dir==="de-it";const art=c.mod
 function vRound(){const st=Q.rounds[Q.ri],F=FASI[st.rd];const prev=Q.rounds[Q.ri-1];
   return `
   <section class="sheet pop">
-    <p class="label">${prev.rd===2?`Gruppo ${prev.g} di ${prev.ng} finito!`:`Round 1 finito!`}</p>
-    <h2>${st.rd===1?`Gruppo ${st.g} di ${st.ng} · `:""}Round ${st.rd} · ${esc(F.nome)}</h2>
-    <p class="muted">${st.words.length} parole${st.rd===2?", le stesse di prima":", nuove"}.</p>
+    <p class="label">Gruppo ${prev.g} di ${prev.ng} finito!</p>
+    <h2>Gruppo ${st.g} di ${st.ng} · Round ${st.rd}</h2>
+    <p class="muted">${esc(F.nome)}. ${st.words.length} parole${st.rd===2?" che hai già indovinato nel round 1":""}.</p>
     <div class="phases" aria-hidden="true">${Q.rounds.map((x,i)=>`<span class="${i<Q.ri?"done":i===Q.ri?"now":""}"></span>`).join("")}</div>
     <button class="primary big" id="nextround">Inizia</button>
   </section>`}
@@ -541,7 +549,25 @@ function vFine(){if(Q.kind==="sera")return vFineSera();const t=Q.total,ok=Q.ok;c
 
 /* ---------- tab Genitori: codice famiglia, invio, dashboard ---------- */
 let G=null; // {rows,err,at}
-let mieTipo=null;
+let mieTipo=null, foto=null; // foto: {file,url}
+function vFoto(){const bot=S.botTg||"";
+  if(!bot)return shell(`
+  <section class="sheet pop"><h2>Foto di una pagina</h2>
+    <p class="muted">Fai la foto di una pagina del libro e mandala al bot Telegram: legge le parole nuove e le aggiunge.</p>
+    <p class="label">Nome del bot Telegram</p>
+    <form id="botform" class="row" autocomplete="off"><input type="text" id="botinput" class="grow" placeholder="es. karim_tedesco_bot" autocapitalize="off" spellcheck="false"><button class="primary" type="submit">Salva</button></form>
+    <p class="small muted">Lo trovi in Telegram, è il nome che finisce con "bot". Va messo una volta sola.</p>
+  </section>`);
+  return shell(`
+  <section class="sheet pop"><h2>Foto di una pagina</h2>
+    <p class="muted">1. Fai la foto della pagina. 2. Tocca "Manda su Telegram" e scegli la chat con il bot.</p>
+    <label class="btn primary big filebtn">📷 ${foto?"Rifai la foto":"Fai la foto"}<input type="file" id="fotoin" accept="image/*" capture="environment" hidden></label>
+    ${foto?`<img src="${foto.url}" alt="Foto della pagina" class="fotoprev"><button class="primary big" id="fotosend">Manda su Telegram</button>`:""}
+    <p class="small muted">Bot: <b>@${esc(bot)}</b> · <button class="ghost" id="botchange" style="padding:0;min-height:0">cambia</button> · <a href="https://t.me/${encodeURIComponent(bot)}" target="_blank" rel="noopener">apri il bot</a></p>
+  </section>`)}
+async function sendFoto(){const bot=S.botTg;if(!foto)return;
+  try{if(navigator.canShare&&navigator.canShare({files:[foto.file]})){await navigator.share({files:[foto.file],title:"Pagina del libro"});toast("Fatto! Controlla la risposta del bot su Telegram");return}}catch(e){if(e&&e.name==="AbortError")return}
+  toast("Apro Telegram: allega la foto nella chat con il bot");setTimeout(()=>location.href="https://t.me/"+encodeURIComponent(bot),900)}
 async function loadDash(){if(!REPORT_URL||!S.famiglia)return;G={rows:G&&G.rows||null,loading:true};if(view==="genitori")render();
   try{const r=await fetch(REPORT_URL+"?famiglia="+encodeURIComponent(S.famiglia)+"&t="+Date.now());const j=await r.json();G={rows:(j.rows||[]).filter(x=>x.data),at:new Date()}}
   catch(e){G={rows:G&&G.rows,err:true}}
@@ -630,7 +656,7 @@ function vFineSera(){const n=Q.batch.length,bad=Q.batch.filter(w=>Q.bad.has(w.id
   return `
   <section class="sheet pop" style="text-align:left">
     <p class="confetti">${!bad.length?"Toll!":good>=n/2?"Gut gemacht!":"Weiter so!"}</p>
-    <h2>${good} su ${n} parole imparate</h2>
+    <h2>${good} su ${n} parole giuste</h2>
     <p class="muted">${bad.length?`Le ${bad.length} sbagliate tornano per prime domani sera.`:"Nessun errore in tutti i round!"} Sei a ${streak()} ${streak()===1?"sera":"sere"} di fila.</p>
     ${bad.length?`<p class="label">Da rifare domani</p>${bad.map(w=>`<div class="listitem"><div class="grow"><b>${deHtml(w.de)}</b><p class="small muted">${esc(w.it)}</p></div></div>`).join("")}`:""}
     ${newWords().length?`<h3>Ne vuoi ancora o andiamo a domani sera?</h3>
@@ -639,7 +665,7 @@ function vFineSera(){const n=Q.batch.length,bad=Q.batch.filter(w=>Q.bad.has(w.id
   </section>`}
 
 function render(){const app=$("#app");
-  app.innerHTML=view==="quiz"?vQuiz():view==="round"?vRound():view==="fine"?vFine():view==="progressi"?vProgressi():view==="liste"?vListe():view==="genitori"?vGenitori():vHome();
+  app.innerHTML=view==="quiz"?vQuiz():view==="round"?vRound():view==="fine"?vFine():view==="progressi"?vProgressi():view==="liste"?vListe():view==="genitori"?vGenitori():view==="foto"?vFoto():vHome();
   if(view==="quiz"){const inp=$("#typed");if(inp&&!inp.disabled)inp.focus();else{const n=$("#next");if(n)n.focus()}}
   if(view==="genitori")hookTip();
   window.scrollTo(0,0)}
@@ -652,7 +678,7 @@ document.addEventListener("click",e=>{const t=e.target.closest("button,#flip");i
   if(t.id==="famchange"){S.famiglia="";S.invia=false;G=null;save();render();return}
   if(t.id==="dashreload"){loadDash();return}
   if(t.id==="resetno"){resetAsk=false;render();return}
-  if(t.id==="resetyes"){const keep={liste:S.liste,mie:S.mie,direzione:S.direzione,modo:S.modo,nome:S.nome,invia:S.invia,famiglia:S.famiglia};S=Object.assign(blank(),keep);resetAsk=false;save();view="home";render();toast("Progressi azzerati: si riparte dal Kapitel 1");return}
+  if(t.id==="resetyes"){const keep={liste:S.liste,mie:S.mie,botTg:S.botTg,direzione:S.direzione,modo:S.modo,nome:S.nome,invia:S.invia,famiglia:S.famiglia};S=Object.assign(blank(),keep);resetAsk=false;save();view="home";render();toast("Progressi azzerati: si riparte dal Kapitel 1");return}
   if(t.dataset.dir){S.direzione=t.dataset.dir;save();render();return}
   if(t.dataset.modo){S.modo=t.dataset.modo;save();render();return}
   if(t.id==="start"){startQuiz("sera");return}
@@ -677,6 +703,8 @@ document.addEventListener("click",e=>{const t=e.target.closest("button,#flip");i
   if(t.dataset.key){const i=$("#typed");const p=i.selectionStart??i.value.length;i.value=i.value.slice(0,p)+t.dataset.key+i.value.slice(i.selectionEnd??p);Q.cur.answer=i.value;i.focus();i.setSelectionRange(p+1,p+1);return}
   if(t.dataset.opt!==undefined){if(Q.cur.result)return;Q.cur.picked=+t.dataset.opt;const y=window.scrollY;render();window.scrollTo(0,y);return}
   if(t.id==="confirm"){if(Q.cur.picked==null||Q.cur.result)return;answer(Q.cur.opts[Q.cur.picked].id===Q.cur.w.id);return}
+  if(t.id==="fotosend"){sendFoto();return}
+  if(t.id==="botchange"){S.botTg="";save();render();return}
   if(t.dataset.mietipo){mieTipo=t.dataset.mietipo;document.querySelectorAll("[data-mietipo]").forEach(b=>b.setAttribute("aria-pressed",b===t));return}
   if(t.dataset.miedel){S.mie=(S.mie||[]).filter(m=>m[0]!==t.dataset.miedel);save();render();return}
   if(t.dataset.del){S.liste=S.liste.filter(l=>l.id!==t.dataset.del);save();render();toast("Lista eliminata");return}
@@ -687,7 +715,10 @@ document.addEventListener("click",e=>{const t=e.target.closest("button,#flip");i
 document.addEventListener("input",e=>{if(e.target.id==="typed"&&Q&&Q.cur)Q.cur.answer=e.target.value});
 document.addEventListener("click",e=>{const t=e.target.closest("[data-tipo],[data-art]");if(!t||!Q||!Q.cur||Q.cur.result)return;
   if(t.dataset.tipo){Q.cur.tipo=t.dataset.tipo;if(Q.cur.tipo!=="s")Q.cur.art=null}else Q.cur.art=t.dataset.art==="none"?null:t.dataset.art;render()});
-document.addEventListener("submit",e=>{if(e.target.id==="mieform"){e.preventDefault();
+document.addEventListener("change",e=>{if(e.target.id!=="fotoin")return;const f=e.target.files&&e.target.files[0];if(!f)return;
+  if(foto)URL.revokeObjectURL(foto.url);foto={file:f,url:URL.createObjectURL(f)};render()});
+document.addEventListener("submit",e=>{if(e.target.id==="botform"){e.preventDefault();const v=$("#botinput").value.trim().replace(/^@/,"").replace(/^https?:\/\/t\.me\//,"");if(!v){toast("Scrivi il nome del bot");return}S.botTg=v;save();render();return}
+if(e.target.id==="mieform"){e.preventDefault();
     const de=$("#miede").value.trim().replace(/\s+/g," "),it=$("#mieit").value.trim().replace(/\s+/g," ");
     if(!de||!it){toast("Scrivi la parola in tedesco e in italiano");return}
     const m=de.match(/^(der|die|das)\s+/i);const tp=m?"s":mieTipo;if(!tp){toast("Scegli che tipo di parola è");return}
