@@ -213,7 +213,14 @@ function activeWords(){const act=new Set(activeIds());const seen=new Set();const
 const MIE={id:"mie",nome:"Le mie parole"};
 /* EXTRA: parole aggiunte da Claude dalle foto delle pagine del libro, formato [de,it,tipo]. Hanno la precedenza come le mie parole. */
 const EXTRA=[];
-const mieList=()=>[...EXTRA,...(S.mie||[])];
+const mieList=()=>[...EXTRA,...(S.dalbot||[]),...(S.mie||[])];
+/* Parole dal bot Telegram: il bot le salva nel Foglio Google (foglio "Parole") con il codice famiglia; l'app le scarica qui. */
+async function loadBotWords(){if(!REPORT_URL||!S.famiglia)return;
+  try{const r=await fetch(REPORT_URL+"?parole=1&famiglia="+encodeURIComponent(S.famiglia)+"&t="+Date.now());const j=await r.json();
+    const known=new Set([...allLists().flatMap(l=>l.parole.map(p=>norm(p[0].replace(/^(der|die|das)\s+/i,"").replace(/\([^)]*\)/g,"")))),...[...EXTRA,...(S.mie||[])].map(p=>norm(p[0].replace(/^(der|die|das)\s+/i,"")))]);
+    const out=[];for(const p of j.parole||[]){const k=norm(String(p.de).replace(/^(der|die|das)\s+/i,"").replace(/\([^)]*\)/g,""));if(!k||known.has(k))continue;known.add(k);
+      const tp=/^(der|die|das)\s/i.test(p.de)?"s":(["s","a","v","av","x"].includes(p.tipo)?p.tipo:"x");out.push([String(p.de),String(p.it),tp])}
+    const before=(S.dalbot||[]).length;S.dalbot=out;save();if(out.length>before){toast(`${out.length-before} parole nuove dal bot`);if(view==="home"||view==="liste")render()}}catch(e){}}
 const mieWords=()=>mieList().map(([de,it])=>({id:cardId(de,it),de,it,lista:"mie"}));
 function allWords(){const seen=new Set(),out=[];for(const l of [...allLists(),{...MIE,parole:mieList()}])for(const w of wordsOf(l))if(!seen.has(w.id)){seen.add(w.id);out.push(w)}return out}
 const cardOf=id=>S.cards[id]||null;
@@ -399,6 +406,7 @@ function vListe(){const ci=currentIdx();
       <button class="primary" type="submit">Aggiungi</button>
     </form>
     ${mie.length?`<p class="label">Le mie parole (${mie.length})</p>${mie.slice().reverse().map(([de,it,tp])=>`<div class="listitem"><div class="grow" style="min-width:0">${deHtml(de)} <span class="muted">= ${esc(it)}</span><br><span class="small muted">${TIPO_NOMI[tp]||""}${isDone(cardId(de,it))?" · imparata":""}</span></div><button class="ghost" data-miedel="${esc(de)}">Elimina</button></div>`).join("")}`:""}
+    ${(S.dalbot||[]).length?`<p class="label">Dalle foto (bot Telegram) · ${S.dalbot.length}</p>${S.dalbot.slice().reverse().map(([de,it,tp])=>`<div class="listitem"><div class="grow" style="min-width:0">${deHtml(de)} <span class="muted">= ${esc(it)}</span><br><span class="small muted">${TIPO_NOMI[tp]||""}${isDone(cardId(de,it))?" · imparata":""}</span></div></div>`).join("")}`:""}
   </section>
   <section class="sheet"><p class="label">Capitoli, in ordine</p>
     <p class="small muted">Ogni sera 20 parole, a gruppi di 5. Round 1: vedi il tedesco, scrivi l'italiano e scegli che parola è (per i nomi anche der, die o das). Quando una parola passa il round 1, una sera dopo fa il round 2: dall'italiano scrivi il tedesco, i nomi con l'articolo. È imparata quando passa tutti e due al primo colpo. Imparate tutte, si apre il capitolo successivo.</p>
@@ -749,7 +757,8 @@ document.addEventListener("keydown",e=>{if(view!=="quiz"||!Q||!Q.cur)return;
   if(Q.cur.mode==="carte"&&!Q.cur.result&&(e.key===" "||e.key==="Enter")&&!Q.cur.flipped){e.preventDefault();Q.cur.flipped=true;render()}});
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden")flush()});
 
-render();connect();sendOutbox();
+if(!S.botTg)S.botTg="vokabeln_gabri_bot";
+render();connect();sendOutbox();loadBotWords();
 /* Tira giù per aggiornare (nell'app installata non c'è il refresh del browser) */
 (()=>{let y0=null,pulled=0;const tip=document.createElement("div");
   tip.style.cssText="position:fixed;left:50%;top:calc(env(safe-area-inset-top) + 8px);transform:translateX(-50%);background:var(--ink);color:var(--paper);font:700 .85rem var(--body);padding:6px 12px;border-radius:99px;z-index:99;opacity:0;transition:opacity .15s;pointer-events:none";
