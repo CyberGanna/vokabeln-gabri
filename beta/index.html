@@ -340,6 +340,7 @@ function vHome(){if(!S.nome)return vNome();const cur=currentList(),ci=currentIdx
       <p class="muted">${allDone?"Hai studiato tutte le parole. Continua con i ripassi.":"Domani sera arrivano le prossime."}</p>`}
     ${total>0?`<button class="primary big" id="start">Inizia</button>`:newWords().length?`<button class="primary big" id="more">Ne voglio fare ancora ${EXTRA_STEP}</button>`:""}
     ${due.length?`<button class="big" id="review">Ripassa le parole da rinforzare (${due.length})</button>`:""}
+    <button class="big" id="flash">Flash card 🇮🇹 → 🇩🇪 (20 carte)</button>
     ${words.some(w=>cardOf(w.id))?`<button class="big" id="free">Ripasso libero (10 parole già viste)</button>`:""}
     <p class="label" style="margin-top:6px">Per i ripassi extra</p>
     <div class="row"><span class="label">Domanda in</span></div>
@@ -427,7 +428,9 @@ function vListe(){const ci=currentIdx();
 
 /* ---------- quiz ---------- */
 function startQuiz(kind){let items;
-  if(kind==="libero"){const seen=activeWords().filter(w=>cardOf(w.id));items=shuffle(seen).slice(0,10).map(w=>({w}))}
+  if(kind==="flash"){const seen=new Set(),pool=[];for(const w of [...mieWords(),...activeWords()])if(!seen.has(w.id)){seen.add(w.id);pool.push(w)}
+    const nd=pool.filter(w=>!isDone(w.id)),dn=pool.filter(w=>isDone(w.id));items=[...shuffle(nd),...shuffle(dn)].slice(0,20).map(w=>({w,mode:"carte",dir:"it-de"}))}
+  else if(kind==="libero"){const seen=activeWords().filter(w=>cardOf(w.id));items=shuffle(seen).slice(0,10).map(w=>({w}))}
   else if(kind==="ripasso"){items=shuffle(dueToday()).slice(0,20).map(w=>({w}))}
   else{const lim=newLeftToday(),all=newWords();const p1=all.filter(w=>!passedR1(w.id)),p2=all.filter(w=>passedR1(w.id));
     const r2=p2.slice(0,lim-Math.min(R1_PER_NIGHT,p1.length));const r1=p1.slice(0,lim-r2.length);
@@ -711,6 +714,7 @@ document.addEventListener("click",e=>{const t=e.target.closest("button,#flip");i
     try{if(!v.startsWith("VOK1:"))throw 0;const o=JSON.parse(decodeURIComponent(escape(atob(v.slice(5)))));if(!o||typeof o.cards!=="object")throw 0;
       S=Object.assign(blank(),o);save();render();toast("Progressi ripristinati")}catch(e){toast("Codice non valido: incollalo intero, a partire da VOK1:")}return}
   if(t.id==="free"){startQuiz("libero");return}
+  if(t.id==="flash"){startQuiz("flash");return}
   if(t.id==="home"){view="home";render();return}
   if(t.id==="quit"){view="home";Q=null;render();return}
   if(t.id==="next"){nextQ();return}
