@@ -324,7 +324,7 @@ function vHome(){if(!S.nome)return vNome();const cur=currentList(),ci=currentIdx
     <p class="label" style="margin-top:6px">Per i ripassi extra</p>
     <div class="row"><span class="label">Domanda in</span></div>
     <div class="chips" role="group" aria-label="Direzione">
-      ${[["it-de","Italiano → Tedesco"],["de-it","Tedesco → Italiano"],["mix","Misto"]].map(([k,t])=>`<button class="chip" data-dir="${k}" aria-pressed="${dir===k}">${t}</button>`).join("")}
+      ${[["it-de","🇮🇹 Italiano → 🇩🇪 Tedesco"],["de-it","🇩🇪 Tedesco → 🇮🇹 Italiano"],["mix","🇮🇹🇩🇪 Misto"]].map(([k,t])=>`<button class="chip" data-dir="${k}" aria-pressed="${dir===k}">${t}</button>`).join("")}
     </div>
     <div class="row"><span class="label">Tipo di quiz</span></div>
     <div class="chips" role="group" aria-label="Tipo di quiz">
