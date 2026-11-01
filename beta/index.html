@@ -155,7 +155,7 @@ const INTERVALS=[0,1,2,4,7,15,30]; // giorni per scatola 0..6
    e solo per i nomi: 5 nome senza articolo → scrivere l'articolo, 6 italiano → articolo + nome.
    Una parola è imparata se non la sbaglia mai al primo colpo in nessun round;
    altrimenti torna per prima la sera dopo. Imparate tutte, si passa al capitolo successivo. */
-const FASI={1:{mode:"scelta",dir:"de-it",nome:"Tedesco → italiano, scegli tra 5"},2:{mode:"scelta",dir:"it-de",nome:"Italiano → tedesco, scegli tra 5"},
+const FASI={1:{mode:"carte",dir:"de-it",nome:"Flash card: tedesco → italiano"},2:{mode:"carte",dir:"it-de",nome:"Flash card: italiano → tedesco"},
   3:{mode:"scrivi",dir:"de-it",nome:"Tedesco → scrivi in italiano"},4:{mode:"scrivi",dir:"it-de",nome:"Italiano → scrivi in tedesco"},
   5:{mode:"articolo",dir:"de-it",nome:"Solo nomi: scrivi l'articolo (der, die, das)"},6:{mode:"scrivi",dir:"it-de",nome:"Solo nomi: italiano → tedesco con l'articolo giusto"}};
 /* Fasi 5 e 6 solo per i nomi con articolo: 5 vede il nome senza articolo e scrive l'articolo,
@@ -538,7 +538,7 @@ function dashHTML(){
   const capP=n(last.imparate_capitolo),capT=n(last.totale_capitolo)||1;
   const cnt={};for(const r of rows)for(const w of String(r.parole_sbagliate||"").split(";").map(x=>x.trim()).filter(Boolean))cnt[w]=(cnt[w]||0)+1;
   const errs=Object.entries(cnt).sort((a,b)=>b[1]-a[1]).slice(0,10);
-  const RN=["Ted → ita, scelta","Ita → ted, scelta","Scrivi in italiano","Scrivi in tedesco","Articolo","Articolo + nome"];
+  const RN=["Carte ted → ita","Carte ita → ted","Scrivi in italiano","Scrivi in tedesco","Articolo","Articolo + nome"];
   const rAvg=[1,2,3,4,5,6].map(k=>{let a=0,b=0;for(const r of week){const [x,y]=String(r["r"+k]||"").split("/").map(Number);if(y){a+=x;b+=y}}return b?a+"/"+b:""});
   const pill=v=>{const [a,b]=String(v||"").split("/").map(Number);if(!b)return `<span class="muted">–</span>`;const p=a/b;return `<span class="db-pill ${p>=.9?"ok":p>=.7?"mid":"bad"}">${a}/${b}</span>`};
   return `
