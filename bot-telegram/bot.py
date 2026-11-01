@@ -11,6 +11,9 @@ import io
 import json
 import logging
 import os
+import shutil
+import subprocess
+import tempfile
 
 import httpx
 
@@ -102,24 +105,62 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
 
 
+FORMATI_OK = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+MAX_BYTE = 4_500_000  # il modello accetta immagini fino a circa 5 MB
+
+
+def prepara_immagine(dati: bytes, media_type: str, nome: str) -> tuple[bytes, str]:
+    """Converte HEIC (iPhone) e riduce le foto troppo grandi. Sul Mac usa `sips`, già installato."""
+    estensione = nome.lower().rsplit(".", 1)[-1] if "." in nome else ""
+    if media_type not in FORMATI_OK:
+        media_type = {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png",
+                      "webp": "image/webp"}.get(estensione, media_type)
+    if media_type in FORMATI_OK and len(dati) <= MAX_BYTE:
+        return dati, media_type
+    if not shutil.which("sips"):
+        raise ValueError("Questo formato non lo so leggere: mandami la foto normale (JPEG o PNG).")
+    with tempfile.TemporaryDirectory() as cartella:
+        sorgente = os.path.join(cartella, "in." + (estensione or "img"))
+        destinazione = os.path.join(cartella, "out.jpg")
+        with open(sorgente, "wb") as f:
+            f.write(dati)
+        esito = subprocess.run(["sips", "-s", "format", "jpeg", "-s", "formatOptions", "85",
+                                "-Z", "2400", sorgente, "--out", destinazione], capture_output=True)
+        if esito.returncode != 0 or not os.path.exists(destinazione):
+            raise ValueError("Non riesco ad aprire questo file: mandami la foto normale (JPEG o PNG).")
+        with open(destinazione, "rb") as f:
+            return f.read(), "image/jpeg"
+
+
+async def altro_messaggio(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Qualsiasi altro messaggio: risponde sempre, così non resta mai in silenzio."""
+    if not autorizzato(update) or not update.message:
+        return
+    log.info("Messaggio non gestito da %s", update.effective_user.id)
+    await update.message.reply_text("Mandami la foto di una pagina in tedesco. Comandi: /parole, /esporta.")
+
+
 async def ricevi_foto(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not autorizzato(update):
         return
     msg = update.message
+    log.info("Ricevuta immagine da %s", update.effective_user.id)
     if msg.photo:
         # Telegram manda la stessa foto in più risoluzioni: l'ultima è la più grande.
-        file_id, media_type = msg.photo[-1].file_id, "image/jpeg"
+        file_id, media_type, nome = msg.photo[-1].file_id, "image/jpeg", "foto.jpg"
     else:  # immagine mandata come file (non compressa, migliore per l'OCR)
         doc = msg.document
-        if doc.mime_type not in ("image/jpeg", "image/png", "image/webp", "image/gif"):
-            await msg.reply_text("Mandami una foto (JPEG o PNG).")
-            return
-        file_id, media_type = doc.file_id, doc.mime_type
+        file_id, media_type, nome = doc.file_id, (doc.mime_type or ""), (doc.file_name or "")
 
     attesa = await msg.reply_text("Sto leggendo la pagina…")
     await context.bot.send_chat_action(msg.chat_id, ChatAction.TYPING)
     tg_file = await context.bot.get_file(file_id)
     immagine = bytes(await tg_file.download_as_bytearray())
+    try:
+        immagine, media_type = await asyncio.to_thread(prepara_immagine, immagine, media_type, nome)
+    except ValueError as e:
+        await attesa.edit_text(str(e))
+        return
 
     try:
         dati = await asyncio.to_thread(
@@ -198,7 +239,8 @@ def main() -> None:
     app.add_handler(CommandHandler(["start", "help"], start))
     app.add_handler(CommandHandler("parole", parole))
     app.add_handler(CommandHandler("esporta", esporta))
-    app.add_handler(MessageHandler(filters.PHOTO | filters.Document.IMAGE, ricevi_foto))
+    app.add_handler(MessageHandler(filters.PHOTO | filters.Document.ALL, ricevi_foto))
+    app.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, altro_messaggio))
     app.add_handler(CallbackQueryHandler(scarta, pattern=r"^del:\d+$"))
     log.info("Bot avviato (filtro: %s). Ctrl+C per fermarlo.", FILTRO.lower())
     app.run_polling(bootstrap_retries=-1)  # se la rete non risponde, riprova invece di chiudersi
