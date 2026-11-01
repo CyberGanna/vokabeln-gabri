@@ -62,6 +62,8 @@ p{margin:0}
 .db-table .r{text-align:center}
 .db-pill{display:inline-block;padding:1px 6px;border-radius:99px;font-weight:700;font-size:.78rem}
 .db-pill.ok{background:var(--ok-soft);color:var(--ok)}.db-pill.mid{background:var(--pen-soft);color:var(--pen)}.db-pill.bad{background:var(--bad-soft);color:var(--bad)}
+.tipoform{display:flex;flex-direction:column;gap:10px}.tipoform input{width:100%;box-sizing:border-box}
+.chip.ok{border-color:var(--ok)!important;background:var(--ok-soft);color:var(--ok)}.chip.bad{border-color:var(--bad)!important;background:var(--bad-soft);color:var(--bad)}
 .rounds{margin:0;padding-left:1.3em;display:grid;gap:2px}
 .phases{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}.phases span{height:6px;border-radius:99px;background:var(--grid)}.phases .done{background:var(--ok)}.phases .now{background:var(--pen)}
 header.top{display:flex;align-items:center;justify-content:space-between;gap:12px}
@@ -155,12 +157,15 @@ const INTERVALS=[0,1,2,4,7,15,30]; // giorni per scatola 0..6
    e solo per i nomi: 5 nome senza articolo → scrivere l'articolo, 6 italiano → articolo + nome.
    Una parola è imparata se non la sbaglia mai al primo colpo in nessun round;
    altrimenti torna per prima la sera dopo. Imparate tutte, si passa al capitolo successivo. */
-const FASI={1:{mode:"carte",dir:"de-it",nome:"Flash card: tedesco → italiano"},2:{mode:"carte",dir:"it-de",nome:"Flash card: italiano → tedesco"},
-  3:{mode:"scrivi",dir:"de-it",nome:"Tedesco → scrivi in italiano"},4:{mode:"scrivi",dir:"it-de",nome:"Italiano → scrivi in tedesco"},
-  5:{mode:"articolo",dir:"de-it",nome:"Solo nomi: scrivi l'articolo (der, die, das)"},6:{mode:"scrivi",dir:"it-de",nome:"Solo nomi: italiano → tedesco con l'articolo giusto"}};
-/* Fasi 5 e 6 solo per i nomi con articolo: 5 vede il nome senza articolo e scrive l'articolo,
-   6 vede l'italiano e scrive articolo + nome. */
-const maxPh=w=>/^(der|die|das)\s/i.test(w.de)?6:4;
+const FASI={1:{mode:"tipo",dir:"de-it",nome:"Tedesco → scrivi in italiano e scegli che parola è"},
+  2:{mode:"scrivi",dir:"it-de",nome:"Italiano → scrivi in tedesco (i nomi con l'articolo)"}};
+/* v1.1: 2 round per gruppo di 5 parole. Round 1: vede il tedesco (nomi senza articolo), scrive l'italiano,
+   sceglie sostantivo/aggettivo/verbo/avverbio/altro e, se è un nome, der/die/das. Round 2: italiano → tedesco. */
+const GRUPPO=5;
+const maxPh=w=>2;
+const TIPI={"Berlin": "s", "Deutschland": "s", "Österreich": "s", "Wien": "s", "Bern": "s", "Basketball": "s", "Geografie": "s", "Biologie / Bio": "s", "Mathematik": "s", "Geschichte": "s", "Kunst": "s", "Musik": "s", "Physik": "s", "Sozialkunde": "s", "Sport": "s", "Chemie": "s", "Latein": "s", "Religion": "s", "der/die Deutsche (-n)": "s", "der/die Erwachsene (-n)": "s", "wissen": "v", "ich weiss": "v", "sein": "v", "er ist": "v", "lesen": "v", "er liest": "v", "gehen": "v", "heissen": "v", "du heisst": "v", "hören": "v", "mögen": "v", "er mag": "v", "spielen": "v", "sprechen": "v", "er spricht": "v", "markieren": "v", "schreiben": "v", "üben": "v", "buchstabieren": "v", "diktieren": "v", "können": "v", "er kann": "v", "kennen": "v", "machen": "v", "sammeln": "v", "helfen": "v", "er hilft": "v", "notieren": "v", "vergleichen": "v", "verstehen": "v", "begrüssen": "v", "verabschieden": "v", "filmen": "v", "finden": "v", "fotografieren": "v", "kontrollieren": "v", "nummerieren": "v", "sehen": "v", "er sieht": "v", "zuordnen": "v", "arbeiten": "v", "bearbeiten": "v", "fahren": "v", "er fährt": "v", "nennen": "v", "sagen": "v", "schauen": "v", "schwimmen": "v", "surfen": "v", "tauchen": "v", "wohnen": "v", "antworten": "v", "fragen": "v", "ergänzen": "v", "nachsprechen": "v", "lieben": "v", "liegen": "v", "singen": "v", "vorlesen": "v", "kochen": "v", "kommen": "v", "stellen": "v", "haben": "v", "ansehen (er sieht an)": "v", "zeigen": "v", "lernen": "v", "verbinden": "v", "wollen (er will)": "v", "mitkommen (er kommt mit)": "v", "stimmen": "v", "bekommen": "v", "geben (er gibt)": "v", "es gibt": "v", "beantworten": "v", "korrigieren": "v", "wählen": "v", "anfangen (er fängt an)": "v", "holen": "v", "fehlen": "v", "aufschreiben (er schreibt auf)": "v", "vorstellen (er stellt vor)": "v", "zählen": "v", "laufen": "v", "er läuft": "v", "fischen": "v", "fliegen": "v", "stehen": "v", "essen": "v", "er isst": "v", "klingeln": "v", "rufen": "v", "trinken": "v", "weg sein (er ist weg)": "v", "funktionieren": "v", "kaufen": "v", "aussehen": "v", "ausgeben": "v", "beschreiben": "v", "benutzen": "v", "sich freuen": "v", "gewinnen": "v", "shoppen": "v", "leidtun (es tut leid)": "v", "mitgehen (er geht mit)": "v", "tanzen": "v", "abholen (er holt ab)": "v", "anrufen (er ruft an)": "v", "anziehen (er zieht an)": "v", "aussteigen (er steigt aus)": "v", "einsteigen (er steigt ein)": "v", "los sein (es ist los)": "v", "nehmen": "v", "regnen": "v", "tragen (er trägt)": "v", "treffen (er trifft)": "v", "zurückfahren (er fährt zurück)": "v", "ankommen (er kommt an)": "v", "anmachen (er macht an)": "v", "aufhören (er hört auf)": "v", "aufstehen (er steht auf)": "v", "abschreiben (er schreibt ab)": "v", "einkaufen (er kauft ein)": "v", "feiern": "v", "freihaben (er hat frei)": "v", "müssen (er muss)": "v", "vorbeikommen (er kommt vorbei)": "v", "telefonieren": "v", "Lust haben (er hat Lust)": "v", "gut": "a", "kurz": "a", "lang": "a", "international": "a", "bekannt": "a", "pünktlich": "a", "cool": "a", "super": "a", "toll": "a", "alt": "a", "anders": "a", "gleich": "a", "laut": "a", "schwer": "a", "lieb": "a", "wichtig": "a", "farbig": "a", "identisch": "a", "richtig": "a", "einfach": "a", "interessant": "a", "lustig": "a", "nett": "a", "schulfrei": "a", "total": "a", "intelligent": "a", "klar": "a", "halb": "a", "spät": "a", "best-": "a", "kompliziert": "a", "klein": "a", "braun": "a", "schwarz": "a", "weiß": "a", "blau": "a", "bunt": "a", "gelb": "a", "grau": "a", "grün": "a", "rot": "a", "dunkel": "a", "hell": "a", "orange": "a", "allein": "a", "sinnvoll": "a", "frisch": "a", "kalt": "a", "schön": "a", "berühmt": "a", "neu": "a", "spitze": "a", "langweilig": "a", "verrückt": "a", "froh": "a", "glücklich": "a", "nass": "a", "wütend": "a", "früh": "a", "schnell": "a", "blöd": "a", "schrecklich": "a", "fleißig": "a", "prima": "a", "bald": "av", "hier": "av", "gern": "av", "viel": "av", "genau": "av", "jetzt": "av", "da": "av", "sehr": "av", "so": "av", "zu Hause": "av", "ein bisschen": "av", "einmal": "av", "nicht": "av", "noch": "av", "mehr": "av", "dann": "av", "vielleicht": "av", "heute": "av", "immer": "av", "zweimal": "av", "zuerst": "av", "nie": "av", "nur": "av", "sogar": "av", "trotzdem": "av", "morgen": "av", "schon": "av", "zu Fuß": "av", "manchmal": "av", "oft": "av", "wieder": "av", "am besten": "av", "auch": "av"};
+const TIPO_NOMI={s:"Sostantivo",a:"Aggettivo",v:"Verbo",av:"Avverbio",x:"Altro"};
+const tipoOf=w=>/^(der|die|das)\s/i.test(w.de)?"s":(((S.mie||[]).find(m=>m[0]===w.de)||[])[2]||TIPI[w.de.trim()]||"x");
 const PER_NIGHT=20, OLD_PER_NIGHT=3, EXTRA_STEP=5;
 /* Finite le 20 l'app chiede se ne vuole altre 5 (con tutti i round) o se si continua domani. */
 const extraToday=()=>((S.extra||{})[today()]||0);
@@ -196,7 +201,10 @@ function wordsOf(list){return list.parole.map(([de,it])=>({id:cardId(de,it),de,i
 function activeWords(){const act=new Set(activeIds());const seen=new Set();const out=[];
   for(const l of allLists()) if(act.has(l.id)) for(const w of wordsOf(l)) if(!seen.has(w.id)){seen.add(w.id);out.push(w)}
   return out}
-function allWords(){const seen=new Set(),out=[];for(const l of allLists())for(const w of wordsOf(l))if(!seen.has(w.id)){seen.add(w.id);out.push(w)}return out}
+/* Parole aggiunte da Gabri: S.mie=[[de,it,tipo]]. Entrano per prime nello studio della sera. */
+const MIE={id:"mie",nome:"Le mie parole"};
+const mieWords=()=>(S.mie||[]).map(([de,it])=>({id:cardId(de,it),de,it,lista:"mie"}));
+function allWords(){const seen=new Set(),out=[];for(const l of [...allLists(),{...MIE,parole:S.mie||[]}])for(const w of wordsOf(l))if(!seen.has(w.id)){seen.add(w.id);out.push(w)}return out}
 const cardOf=id=>S.cards[id]||null;
 
 function save(){S.updatedAt=Date.now();lsSet(S);dirty=true;clearTimeout(saveTimer);saveTimer=setTimeout(flush,1200)}
@@ -225,7 +233,9 @@ const tentOf=id=>(S.tent||{})[id]||null;
 const isWrong=id=>!!(S.wrong||{})[id];
 function newWords(){const t=today();
   const todo=wordsOf(currentList()).filter(w=>!isDone(w.id)&&!(tentOf(w.id)&&tentOf(w.id).d===t));
-  return [...todo.filter(w=>isWrong(w.id)),...todo.filter(w=>!isWrong(w.id))]}
+  const mie=mieWords().filter(w=>!isDone(w.id)&&!(tentOf(w.id)&&tentOf(w.id).d===t));const ids=new Set(mie.map(w=>w.id));
+  const all=[...mie,...todo.filter(w=>!ids.has(w.id))];
+  return [...all.filter(w=>isWrong(w.id)),...all.filter(w=>!isWrong(w.id))]}
 function wrongPending(){return newWords().filter(w=>isWrong(w.id)).length}
 function attemptedToday(){const t=today();return Object.values(S.tent||{}).filter(x=>x.d===t).length}
 function newLeftToday(){return Math.max(0,Math.min(newPerNight()-attemptedToday(),newWords().length))}
@@ -295,9 +305,9 @@ function vHome(){if(!S.nome)return vNome();const cur=currentList(),ci=currentIdx
     <div class="bar" role="img" aria-label="${studied} di ${cw.length} parole imparate"><span style="width:${studied/cw.length*100}%;background:var(--ok)"></span></div>
     <p class="small muted">${allDone?"Tutti i capitoli completati!":`${studied} di ${cw.length} parole imparate · poi si passa al ${esc((L[ci+1]||cur).nome.split(" · ")[0])}`}</p>
     <p class="label">Studio di stasera</p>
-    ${total>0?`<h2>${nNew?`${nNew} parole`:""}${nNew&&nOld?" + ":""}${nOld?`${nOld} di ripasso`:""} in 6 round</h2>
+    ${total>0?`<h2>${nNew?`${nNew} parole`:""}${nNew&&nOld?" + ":""}${nOld?`${nOld} di ripasso`:""} a gruppi di ${GRUPPO}</h2>
       ${wrongPending()?`<p class="small" style="color:var(--margin);font-weight:700">Si parte dalle ${Math.min(wrongPending(),nNew)} sbagliate l'ultima volta.</p>`:""}
-      <ol class="small muted rounds">${[1,2,3,4,5,6].map(i=>`<li>${esc(FASI[i].nome)}</li>`).join("")}</ol>
+      <p class="small muted">Per ogni gruppo di ${GRUPPO} parole:</p><ol class="small muted rounds">${[1,2].map(i=>`<li>${esc(FASI[i].nome)}</li>`).join("")}</ol>
       ${nOld?`<p class="small muted">Le ${nOld} di ripasso sono prese dal ${esc(prevName)}, prima quelle sbagliate più spesso.</p>`:""}`
      :`<h2>Fatto per stasera, bravo!</h2>
       <p class="muted">${allDone?"Hai studiato tutte le parole. Continua con i ripassi.":"Domani sera arrivano le prossime."}</p>`}
@@ -363,9 +373,21 @@ function vProgressi(){const days=[];for(let i=13;i>=0;i--){const d=addDays(today
   <p class="small muted">${esc(syncNote)}</p>`)}
 
 function vListe(){const ci=currentIdx();
+  const mie=S.mie||[];
   return shell(`
+  <section class="sheet pop"><h2>Aggiungi una parola</h2>
+    <p class="small muted">Le parole che aggiungi entrano per prime nello studio della prossima sera.</p>
+    <form id="mieform" class="tipoform" autocomplete="off">
+      <input type="text" id="miede" placeholder="Tedesco, es. der Hund" autocapitalize="off" spellcheck="false" lang="de">
+      <input type="text" id="mieit" placeholder="Italiano, es. il cane" autocapitalize="off" lang="it">
+      <div class="chips" role="group" aria-label="Tipo di parola">${Object.entries(TIPO_NOMI).map(([k,t])=>`<button type="button" class="chip" data-mietipo="${k}" aria-pressed="${mieTipo===k}">${t}</button>`).join("")}</div>
+      <p class="small muted">Per i nomi scrivi l'articolo: der, die o das.</p>
+      <button class="primary" type="submit">Aggiungi</button>
+    </form>
+    ${mie.length?`<p class="label">Le mie parole (${mie.length})</p>${mie.slice().reverse().map(([de,it,tp])=>`<div class="listitem"><div class="grow" style="min-width:0">${deHtml(de)} <span class="muted">= ${esc(it)}</span><br><span class="small muted">${TIPO_NOMI[tp]||""}${isDone(cardId(de,it))?" · imparata":""}</span></div><button class="ghost" data-miedel="${esc(de)}">Elimina</button></div>`).join("")}`:""}
+  </section>
   <section class="sheet"><p class="label">Capitoli, in ordine</p>
-    <p class="small muted">Ogni sera le stesse parole passano da 6 round: 1 tedesco → italiano a scelta, 2 italiano → tedesco a scelta, 3 scrivi in italiano, 4 scrivi in tedesco, poi solo per i nomi 5 scrivi l'articolo e 6 scrivi il nome con l'articolo. Una parola è imparata se non la sbagli mai al primo colpo. Imparate tutte, si apre il capitolo successivo.</p>
+    <p class="small muted">Ogni sera 20 parole, a gruppi di 5. Per ogni gruppo: round 1 vedi il tedesco, scrivi l'italiano e scegli che parola è (per i nomi anche der, die o das); round 2 dall'italiano scrivi il tedesco, i nomi con l'articolo. Una parola è imparata se non la sbagli mai al primo colpo. Imparate tutte, si apre il capitolo successivo.</p>
     ${allLists().map((l,i)=>{const ws=wordsOf(l),st=phaseCount(l);const stato=chapterDone(l)?"Completato":i===ci?"In corso":"Bloccato";
       return `<div class="listitem"><span class="chip" style="min-height:0;padding:4px 10px;font-size:.8rem;${stato==="Completato"?"border-color:var(--ok);color:var(--ok)":stato==="In corso"?"border-color:var(--pen);color:var(--pen)":"color:var(--muted)"}">${stato}</span>
       <div class="grow"><b>${esc(l.nome)}</b><br><span class="small muted">${stato==="Completato"?`${ws.length} parole imparate`:stato==="In corso"?`${st} di ${ws.length} parole imparate`:`${ws.length} parole`}</span></div>
@@ -384,12 +406,12 @@ function startQuiz(kind){let items;
   else if(kind==="ripasso"){items=shuffle(dueToday()).slice(0,20).map(w=>({w}))}
   else{const nw=newWords().slice(0,newLeftToday());
     const old=sessionDone()?[]:pickHard(oldPool(),OLD_PER_NIGHT);const batch=[...nw,...old];if(!batch.length)return;
-    const rounds=[1,2,3,4,5,6].filter(rd=>batch.some(w=>maxPh(w)>=rd));
+    const rounds=[];for(let i=0;i<batch.length;i+=GRUPPO){const g=batch.slice(i,i+GRUPPO);for(const rd of [1,2])rounds.push({rd,words:g,g:i/GRUPPO+1,ng:Math.ceil(batch.length/GRUPPO)})}
     Q={kind,batch,rounds,ri:0,bad:new Set(),ok:0,errs:[],cur:null,free:false,t0:Date.now(),rs:{},asked:0};startRound();return}
   if(!items.length)return;
   Q={queue:items.map(e=>({...e,tries:0})),done:0,total:items.length,ok:0,errs:[],cur:null,state:"ask",free:kind!=="sera",kind};nextQ()}
-function startRound(){const rd=Q.rounds[Q.ri],F=FASI[rd];
-  const items=shuffle(Q.batch.filter(w=>maxPh(w)>=rd)).map(w=>({w,mode:F.mode,dir:F.dir,phase:rd,tries:0}));
+function startRound(){const st=Q.rounds[Q.ri],rd=st.rd,F=FASI[rd];
+  const items=shuffle(st.words).map(w=>({w,mode:F.mode,dir:F.dir,phase:rd,tries:0}));
   Q.queue=items;Q.total=items.length;Q.done=0;nextQ()}
 function finishSera(){const t=today();S.tent=Object.assign({},S.tent);S.wrong=Object.assign({},S.wrong);S.done=Object.assign({},S.done);
   for(const w of Q.batch){S.tent[w.id]={d:t};if(Q.bad.has(w.id))S.wrong[w.id]=true;else{delete S.wrong[w.id];S.done[w.id]=S.done[w.id]||t}}
@@ -448,13 +470,21 @@ function answer(correct,extra){const c=Q.cur;c.result=correct?"ok":"bad";c.extra
   if(!correct)Q.queue.splice(Math.min(Q.queue.length,3),0,{w:c.w,mode:c.mode,dir:c.dir,phase:c.phase,tries:c.tries+1});else Q.done++;
   render()}
 
-function vQuiz(){const c=Q.cur,w=c.w;const askDe=c.dir==="de-it";const art=c.mode==="articolo";const prompt=art?w.de.replace(/^(der|die|das)\s+/i,""):askDe?w.de:w.it;const target=askDe?w.it:w.de;
+function vQuiz(){const c=Q.cur,w=c.w;const askDe=c.dir==="de-it";const art=c.mode==="articolo";const tipo=c.mode==="tipo";const prompt=(art||tipo)?w.de.replace(/^(der|die|das)\s+/i,""):askDe?w.de:w.it;const target=askDe?w.it:w.de;
   const pct=Q.done/Q.total*100;
   let body="";
   if(c.mode==="carte"){
     body=`<div class="flip" id="flip" role="button" tabindex="0" aria-label="Gira la carta">
       ${c.flipped?`<p class="label">Risposta</p><p class="word">${askDe?esc(w.it):deHtml(w.de)}</p>`:`<p class="muted">Pensa alla risposta, poi tocca qui per girare la carta.</p>`}</div>
       ${c.flipped&&!c.result?`<div class="two"><button id="no" style="border-color:var(--bad);color:var(--bad)">Non lo sapevo</button><button id="si" style="border-color:var(--ok);color:var(--ok)">Lo sapevo</button></div>`:""}`;
+  }else if(tipo){const hasArt=!!artOf(w.de);
+    body=`<form id="tipoform" autocomplete="off" class="tipoform">
+      <input type="text" id="typed" placeholder="Scrivi in italiano" value="${esc(c.answer)}" ${c.result?"disabled":""} autocapitalize="off" spellcheck="false" lang="it">
+      <p class="label">Che parola è?</p>
+      <div class="chips">${Object.entries(TIPO_NOMI).map(([k,t])=>{const cls=c.result?(k===tipoOf(w)?"ok":c.tipo===k?"bad":""):"";return `<button type="button" class="chip ${cls}" data-tipo="${k}" aria-pressed="${c.tipo===k}" ${c.result?"disabled":""}>${t}</button>`}).join("")}</div>
+      ${c.tipo==="s"||(c.result&&hasArt)?`<p class="label">Articolo</p><div class="chips">${["der","die","das"].map(a=>{const cls=c.result?(a===artOf(w.de)?"ok":c.art===a?"bad":""):"";return `<button type="button" class="chip art-${a} ${cls}" data-art="${a}" aria-pressed="${c.art===a}" ${c.result?"disabled":""}>${a}</button>`}).join("")}</div>`:""}
+      ${c.result?"":`<button class="primary big" type="submit" ${!c.tipo||(c.tipo==="s"&&hasArt&&!c.art)?"disabled":""}>Controlla</button>`}
+    </form>`;
   }else if(c.mode==="scelta"){
     const key=askDe?"it":"de";
     body=`<div class="opts">${c.opts.map((o,i)=>{let cls="";if(c.result){if(o.id===w.id)cls="ok";else if(c.picked===i)cls="bad"}else if(c.picked===i)cls="sel";
@@ -471,23 +501,23 @@ function vQuiz(){const c=Q.cur,w=c.w;const askDe=c.dir==="de-it";const art=c.mod
     fb=`<div class="feedback ${c.result} pop"><span>${c.extra||m}</span><span class="ans">${deHtml(w.de)} = ${esc(w.it)}</span></div>
       <button class="primary big" id="next">${Q.queue.length?"Avanti":"Fine"}</button>`}
   return `
-  <div class="progress"><button class="ghost" id="quit" aria-label="Esci dal quiz">✕ Esci</button><div class="bar"><span style="width:${pct}%;background:var(--ok)"></span></div><span class="small muted" style="font-variant-numeric:tabular-nums">${Q.rounds?`R${Q.ri+1}/${Q.rounds.length} · `:""}${Q.done}/${Q.total}</span></div>
+  <div class="progress"><button class="ghost" id="quit" aria-label="Esci dal quiz">✕ Esci</button><div class="bar"><span style="width:${pct}%;background:var(--ok)"></span></div><span class="small muted" style="font-variant-numeric:tabular-nums">${Q.rounds?`G${Q.rounds[Q.ri].g}/${Q.rounds[Q.ri].ng} R${Q.rounds[Q.ri].rd} · `:""}${Q.done}/${Q.total}</span></div>
   <section class="sheet pop">
     <div class="prompt"><p class="label">${art?"Qual è l'articolo?":askDe?"Cosa vuol dire?":"Come si dice in tedesco?"}</p>
-      <p class="word">${art?`<span class="muted">___</span> ${esc(prompt)}`:askDe?deHtml(prompt):esc(prompt)}</p>
+      <p class="word">${tipo?(c.result?deHtml(w.de):esc(prompt)):art?`<span class="muted">___</span> ${esc(prompt)}`:askDe?deHtml(prompt):esc(prompt)}</p>
       ${art?`<p class="muted">${esc(w.it)}</p>`:""}
       ${askDe||c.result||c.flipped?`<button class="say" id="say" type="button">Ascolta</button>`:""}</div>
     ${body}${fb}
   </section>`}
 
-function vRound(){const rd=Q.rounds[Q.ri],F=FASI[rd];const n=Q.batch.filter(w=>maxPh(w)>=rd).length;
+function vRound(){const st=Q.rounds[Q.ri],F=FASI[st.rd];const prev=Q.rounds[Q.ri-1];
   return `
   <section class="sheet pop">
-    <p class="label">Round ${Q.ri} di ${Q.rounds.length} finito${Q.bad.size?"":" senza errori"}!</p>
-    <h2>Round ${Q.ri+1} · ${esc(F.nome)}</h2>
-    <p class="muted">${n} parole${rd>=5?", solo i nomi":", le stesse di prima"}.</p>
+    <p class="label">${prev.rd===2?`Gruppo ${prev.g} di ${prev.ng} finito!`:`Round 1 finito!`}</p>
+    <h2>${st.rd===1?`Gruppo ${st.g} di ${st.ng} · `:""}Round ${st.rd} · ${esc(F.nome)}</h2>
+    <p class="muted">${st.words.length} parole${st.rd===2?", le stesse di prima":", nuove"}.</p>
     <div class="phases" aria-hidden="true">${Q.rounds.map((x,i)=>`<span class="${i<Q.ri?"done":i===Q.ri?"now":""}"></span>`).join("")}</div>
-    <button class="primary big" id="nextround">Inizia il round ${Q.ri+1}</button>
+    <button class="primary big" id="nextround">Inizia</button>
   </section>`}
 function vFine(){if(Q.kind==="sera")return vFineSera();const t=Q.total,ok=Q.ok;const pct=t?Math.round(ok/t*100):0;
   const errs=[...new Map(Q.errs.map(w=>[w.id,w])).values()];
@@ -504,6 +534,7 @@ function vFine(){if(Q.kind==="sera")return vFineSera();const t=Q.total,ok=Q.ok;c
 
 /* ---------- tab Genitori: codice famiglia, invio, dashboard ---------- */
 let G=null; // {rows,err,at}
+let mieTipo=null;
 async function loadDash(){if(!REPORT_URL||!S.famiglia)return;G={rows:G&&G.rows||null,loading:true};if(view==="genitori")render();
   try{const r=await fetch(REPORT_URL+"?famiglia="+encodeURIComponent(S.famiglia)+"&t="+Date.now());const j=await r.json();G={rows:(j.rows||[]).filter(x=>x.data),at:new Date()}}
   catch(e){G={rows:G&&G.rows,err:true}}
@@ -538,8 +569,8 @@ function dashHTML(){
   const capP=n(last.imparate_capitolo),capT=n(last.totale_capitolo)||1;
   const cnt={};for(const r of rows)for(const w of String(r.parole_sbagliate||"").split(";").map(x=>x.trim()).filter(Boolean))cnt[w]=(cnt[w]||0)+1;
   const errs=Object.entries(cnt).sort((a,b)=>b[1]-a[1]).slice(0,10);
-  const RN=["Carte ted → ita","Carte ita → ted","Scrivi in italiano","Scrivi in tedesco","Articolo","Articolo + nome"];
-  const rAvg=[1,2,3,4,5,6].map(k=>{let a=0,b=0;for(const r of week){const [x,y]=String(r["r"+k]||"").split("/").map(Number);if(y){a+=x;b+=y}}return b?a+"/"+b:""});
+  const RN=["Ted → ita + tipo","Ita → ted"];
+  const rAvg=[1,2].map(k=>{let a=0,b=0;for(const r of week){const [x,y]=String(r["r"+k]||"").split("/").map(Number);if(y){a+=x;b+=y}}return b?a+"/"+b:""});
   const pill=v=>{const [a,b]=String(v||"").split("/").map(Number);if(!b)return `<span class="muted">–</span>`;const p=a/b;return `<span class="db-pill ${p>=.9?"ok":p>=.7?"mid":"bad"}">${a}/${b}</span>`};
   return `
   <section class="sheet">${head}
@@ -562,7 +593,7 @@ function dashHTML(){
     <p class="small muted">Giuste al primo colpo. Verde da 90%, blu da 70%, rosso sotto.</p>
     <div class="db-scroll"><table class="db-table">
       <thead><tr><th>Sera</th><th>Parole</th><th>Imparate</th>${RN.map((x,i)=>`<th class="r" title="${x}">R${i+1}</th>`).join("")}<th>Min</th></tr></thead>
-      <tbody>${rows.slice().reverse().slice(0,30).map(r=>`<tr><td>${fmt(r.data)} <span class="muted small">${esc(String(r.capitolo).replace("Kapitel ","K"))}</span></td><td>${n(r.parole)}</td><td>${n(r.imparate)}</td>${[1,2,3,4,5,6].map(k=>`<td class="r">${pill(r["r"+k])}</td>`).join("")}<td>${n(r.minuti)}</td></tr>`).join("")}</tbody>
+      <tbody>${rows.slice().reverse().slice(0,30).map(r=>`<tr><td>${fmt(r.data)} <span class="muted small">${esc(String(r.capitolo).replace("Kapitel ","K"))}</span></td><td>${n(r.parole)}</td><td>${n(r.imparate)}</td>${[1,2].map(k=>`<td class="r">${pill(r["r"+k])}</td>`).join("")}<td>${n(r.minuti)}</td></tr>`).join("")}</tbody>
       <tfoot><tr><th colspan="3">Media 7 giorni</th>${rAvg.map(v=>`<td class="r">${pill(v)}</td>`).join("")}<td></td></tr></tfoot>
     </table></div>
     <p class="small muted">${RN.map((x,i)=>`R${i+1} ${x}`).join(" · ")}</p>
@@ -614,7 +645,7 @@ document.addEventListener("click",e=>{const t=e.target.closest("button,#flip");i
   if(t.id==="famchange"){S.famiglia="";S.invia=false;G=null;save();render();return}
   if(t.id==="dashreload"){loadDash();return}
   if(t.id==="resetno"){resetAsk=false;render();return}
-  if(t.id==="resetyes"){const keep={liste:S.liste,direzione:S.direzione,modo:S.modo,nome:S.nome,invia:S.invia,famiglia:S.famiglia};S=Object.assign(blank(),keep);resetAsk=false;save();view="home";render();toast("Progressi azzerati: si riparte dal Kapitel 1");return}
+  if(t.id==="resetyes"){const keep={liste:S.liste,mie:S.mie,direzione:S.direzione,modo:S.modo,nome:S.nome,invia:S.invia,famiglia:S.famiglia};S=Object.assign(blank(),keep);resetAsk=false;save();view="home";render();toast("Progressi azzerati: si riparte dal Kapitel 1");return}
   if(t.dataset.dir){S.direzione=t.dataset.dir;save();render();return}
   if(t.dataset.modo){S.modo=t.dataset.modo;save();render();return}
   if(t.id==="start"){startQuiz("sera");return}
@@ -639,14 +670,33 @@ document.addEventListener("click",e=>{const t=e.target.closest("button,#flip");i
   if(t.dataset.key){const i=$("#typed");const p=i.selectionStart??i.value.length;i.value=i.value.slice(0,p)+t.dataset.key+i.value.slice(i.selectionEnd??p);Q.cur.answer=i.value;i.focus();i.setSelectionRange(p+1,p+1);return}
   if(t.dataset.opt!==undefined){if(Q.cur.result)return;Q.cur.picked=+t.dataset.opt;const y=window.scrollY;render();window.scrollTo(0,y);return}
   if(t.id==="confirm"){if(Q.cur.picked==null||Q.cur.result)return;answer(Q.cur.opts[Q.cur.picked].id===Q.cur.w.id);return}
+  if(t.dataset.mietipo){mieTipo=t.dataset.mietipo;document.querySelectorAll("[data-mietipo]").forEach(b=>b.setAttribute("aria-pressed",b===t));return}
+  if(t.dataset.miedel){S.mie=(S.mie||[]).filter(m=>m[0]!==t.dataset.miedel);save();render();return}
   if(t.dataset.del){S.liste=S.liste.filter(l=>l.id!==t.dataset.del);save();render();toast("Lista eliminata");return}
   if(t.id==="addlist"){const name=$("#newname").value.trim()||"Lista "+((S.liste||[]).length+1);const parole=parseList($("#newtext").value);
     if(!parole.length){toast("Nessuna parola trovata: scrivi tedesco = italiano, una per riga");return}
     const id="u-"+Date.now().toString(36);S.liste=[...(S.liste||[]),{id,nome:name,parole}];save();render();toast(`Aggiunte ${parole.length} parole`);return}
 });
 document.addEventListener("input",e=>{if(e.target.id==="typed"&&Q&&Q.cur)Q.cur.answer=e.target.value});
-document.addEventListener("submit",e=>{if(e.target.id==="famform"){e.preventDefault();const v=$("#faminput").value.trim().toLowerCase();if(v.length<4){toast("Il codice deve avere almeno 4 caratteri");return}S.famiglia=v;save();G=null;render();loadDash();return}
+document.addEventListener("click",e=>{const t=e.target.closest("[data-tipo],[data-art]");if(!t||!Q||!Q.cur||Q.cur.result)return;
+  if(t.dataset.tipo){Q.cur.tipo=t.dataset.tipo;if(Q.cur.tipo!=="s")Q.cur.art=null}else Q.cur.art=t.dataset.art;render()});
+document.addEventListener("submit",e=>{if(e.target.id==="mieform"){e.preventDefault();
+    const de=$("#miede").value.trim().replace(/\s+/g," "),it=$("#mieit").value.trim().replace(/\s+/g," ");
+    if(!de||!it){toast("Scrivi la parola in tedesco e in italiano");return}
+    const m=de.match(/^(der|die|das)\s+/i);const tp=m?"s":mieTipo;if(!tp){toast("Scegli che tipo di parola è");return}
+    const nd=norm(de.replace(/^(der|die|das)\s+/i,""));
+    if(allWords().some(w=>norm(w.de.replace(/^(der|die|das)\s+/i,"").replace(/\([^)]*\)/g,""))===nd)){toast("Questa parola c'è già");return}
+    const de2=m?m[1].toLowerCase()+de.slice(m[0].length-1):de;
+    S.mie=[...(S.mie||[]),[de2,it,tp]];mieTipo=null;save();render();toast("Parola aggiunta");return}
+if(e.target.id==="famform"){e.preventDefault();const v=$("#faminput").value.trim().toLowerCase();if(v.length<4){toast("Il codice deve avere almeno 4 caratteri");return}S.famiglia=v;save();G=null;render();loadDash();return}
   if(e.target.id==="nameform"){e.preventDefault();const v=$("#nomeinput").value.trim();if(v){S.nome=v.slice(0,30);save();render()}return}
+  if(e.target.id==="tipoform"){e.preventDefault();const c=Q.cur;if(c.result||!c.tipo)return;
+    const pn=variants(c.w.de).join("|");const targets=[c.w.it,...allWords().filter(x=>x.id!==c.w.id&&variants(x.de).join("|")===pn).map(x=>x.it)];
+    let m="bad";for(const t of targets){const x=check(c.answer,t,"it");if(x==="ok"||(x==="quasi"&&m==="bad"))m=x}
+    const okT=c.tipo===tipoOf(c.w),okA=!artOf(c.w.de)||c.art===artOf(c.w.de);const errs=[];
+    if(m==="bad")errs.push("il significato");if(!okT)errs.push("il tipo di parola");else if(!okA)errs.push("l'articolo");
+    if(!errs.length)answer(true,m==="quasi"?"Giusto! Attenzione solo a come si scrive:":"");
+    else answer(false,"Da sistemare: "+errs.join(", ")+".");return}
   if(e.target.id!=="typeform")return;e.preventDefault();const c=Q.cur;if(c.result)return;
   if(c.mode==="articolo"){const a=norm(c.answer).split(" ")[0];if(!a){answer(false);return}answer(a===artOf(c.w.de));return}
   const askDe=c.dir==="de-it";const pk=askDe?"de":"it",tk=askDe?"it":"de";const pn=variants(c.w[pk]).join("|");
