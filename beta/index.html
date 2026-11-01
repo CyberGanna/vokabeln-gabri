@@ -215,7 +215,8 @@ function activeWords(){const act=new Set(activeIds());const seen=new Set();const
 const MIE={id:"mie",nome:"Le mie parole"};
 /* EXTRA: parole aggiunte da Claude dalle foto delle pagine del libro, formato [de,it,tipo]. Hanno la precedenza come le mie parole. */
 const EXTRA=[];
-const mieList=()=>[...EXTRA,...(S.dalbot||[]),...(S.mie||[])];
+const nascosta=de=>(S.nascoste||[]).includes(de);
+const mieList=()=>[...EXTRA,...(S.dalbot||[]).filter(p=>!nascosta(p[0])),...(S.mie||[])];
 /* Parole dal bot Telegram: il bot le salva nel Foglio Google (foglio "Parole") con il codice famiglia; l'app le scarica qui. */
 async function loadBotWords(){if(!REPORT_URL||!S.famiglia)return;
   try{const r=await fetch(REPORT_URL+"?parole=1&famiglia="+encodeURIComponent(S.famiglia)+"&t="+Date.now());const j=await r.json();
@@ -418,7 +419,10 @@ function vListe(){const ci=currentIdx();
       <button class="primary" type="submit">Aggiungi</button>
     </form>
     ${mie.length?`<p class="label">Le mie parole (${mie.length})</p>${mie.slice().reverse().map(([de,it,tp])=>`<div class="listitem"><div class="grow" style="min-width:0">${deHtml(de)} <span class="muted">= ${esc(it)}</span><br><span class="small muted">${TIPO_NOMI[tp]||""}${isDone(cardId(de,it))?" · imparata":""}</span></div><button class="ghost" data-miedel="${esc(de)}">Elimina</button></div>`).join("")}`:""}
-    ${(S.dalbot||[]).length?`<p class="label">Dalle foto (bot Telegram) · ${S.dalbot.length}</p>${S.dalbot.slice().reverse().map(([de,it,tp])=>`<div class="listitem"><div class="grow" style="min-width:0">${deHtml(de)} <span class="muted">= ${esc(it)}</span><br><span class="small muted">${TIPO_NOMI[tp]||""}${isDone(cardId(de,it))?" · imparata":""}</span></div></div>`).join("")}`:""}
+    ${(()=>{const bot=(S.dalbot||[]).filter(p=>!nascosta(p[0])),nh=(S.dalbot||[]).length-bot.length;if(!bot.length&&!nh)return "";
+      return `<div class="row" style="margin-top:8px"><p class="label grow">Dalle foto (bot Telegram) · ${bot.length}</p>${bot.length?(botDelAsk?`<button class="ghost" id="botdelno">Annulla</button><button id="botdelyes" style="border-color:var(--bad);color:var(--bad)">Sì, togli tutte</button>`:`<button class="ghost" id="botdelall">Togli tutte</button>`):""}</div>
+      ${bot.slice().reverse().map(([de,it,tp])=>`<div class="listitem"><div class="grow" style="min-width:0">${deHtml(de)} <span class="muted">= ${esc(it)}</span><br><span class="small muted">${TIPO_NOMI[tp]||""}${isDone(cardId(de,it))?" · imparata":""}</span></div><button class="ghost" data-botdel="${esc(de)}">Togli</button></div>`).join("")}
+      ${nh?`<p class="small muted">${nh} ${nh===1?"parola tolta":"parole tolte"} · <button class="ghost" id="botrestore" style="padding:0;min-height:0">rimettile</button></p>`:""}`})()}
   </section>
   <section class="sheet"><p class="label">Capitoli, in ordine</p>
     <p class="small muted">Ogni sera 20 parole, a gruppi di 5. Round 1: vedi il tedesco, scrivi l'italiano e scegli che parola è (per i nomi anche der, die o das). Quando una parola passa il round 1, una sera dopo fa il round 2: dall'italiano scrivi il tedesco, i nomi con l'articolo. È imparata quando passa tutti e due al primo colpo. Imparate tutte, si apre il capitolo successivo.</p>
@@ -573,7 +577,7 @@ function vFine(){if(Q.kind==="sera")return vFineSera();const t=Q.total,ok=Q.ok;c
 
 /* ---------- tab Genitori: codice famiglia, invio, dashboard ---------- */
 let G=null; // {rows,err,at}
-let mieTipo=null, foto=null; // foto: {file,url}
+let botDelAsk=false, mieTipo=null, foto=null; // foto: {file,url}
 function vFoto(){const bot=S.botTg||"";
   if(!bot)return shell(`
   <section class="sheet pop"><h2>Foto di una pagina</h2>
@@ -705,7 +709,7 @@ document.addEventListener("click",e=>{const t=e.target.closest("button,#flip");i
   if(t.id==="famchange"){S.famiglia="";S.invia=false;G=null;save();render();return}
   if(t.id==="dashreload"){loadDash();return}
   if(t.id==="resetno"){resetAsk=false;render();return}
-  if(t.id==="resetyes"){const keep={liste:S.liste,mie:S.mie,botTg:S.botTg,direzione:S.direzione,modo:S.modo,nome:S.nome,invia:S.invia,famiglia:S.famiglia};S=Object.assign(blank(),keep);resetAsk=false;save();view="home";render();toast("Progressi azzerati: si riparte dal Kapitel 1");return}
+  if(t.id==="resetyes"){const keep={liste:S.liste,mie:S.mie,nascoste:S.nascoste,botTg:S.botTg,direzione:S.direzione,modo:S.modo,nome:S.nome,invia:S.invia,famiglia:S.famiglia};S=Object.assign(blank(),keep);resetAsk=false;save();view="home";render();toast("Progressi azzerati: si riparte dal Kapitel 1");return}
   if(t.dataset.dir){S.direzione=t.dataset.dir;save();render();return}
   if(t.dataset.modo){S.modo=t.dataset.modo;save();render();return}
   if(t.id==="start"){startQuiz("sera");return}
@@ -736,6 +740,11 @@ document.addEventListener("click",e=>{const t=e.target.closest("button,#flip");i
   if(t.id==="aspettaancora"){aspettaParole();return}
   if(t.id==="botchange"){S.botTg="";save();render();return}
   if(t.dataset.mietipo){mieTipo=t.dataset.mietipo;document.querySelectorAll("[data-mietipo]").forEach(b=>b.setAttribute("aria-pressed",b===t));return}
+  if(t.dataset.botdel){S.nascoste=[...(S.nascoste||[]),t.dataset.botdel];save();render();toast("Parola tolta");return}
+  if(t.id==="botdelall"){botDelAsk=true;render();return}
+  if(t.id==="botdelno"){botDelAsk=false;render();return}
+  if(t.id==="botdelyes"){S.nascoste=[...new Set([...(S.nascoste||[]),...(S.dalbot||[]).map(p=>p[0])])];botDelAsk=false;save();render();toast("Parole del bot tolte");return}
+  if(t.id==="botrestore"){S.nascoste=[];save();render();toast("Parole rimesse");return}
   if(t.dataset.miedel){S.mie=(S.mie||[]).filter(m=>m[0]!==t.dataset.miedel);save();render();return}
   if(t.dataset.del){S.liste=S.liste.filter(l=>l.id!==t.dataset.del);save();render();toast("Lista eliminata");return}
   if(t.id==="addlist"){const name=$("#newname").value.trim()||"Lista "+((S.liste||[]).length+1);const parole=parseList($("#newtext").value);
