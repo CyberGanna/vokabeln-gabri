@@ -4,12 +4,16 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#2747d6">
+<link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="../icon-192.png">
+<link rel="apple-touch-icon" href="../icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Vokabeln 1.1">
 <meta name="robots" content="noindex">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}[hidden]{display:none!important}</style>
 </head>
 <body>
-<div style="background:#b45309;color:#fff;font:700 13px/1.2 system-ui,sans-serif;text-align:center;padding:6px">VERSIONE DI PROVA · i progressi qui non contano</div>
 <title>Vokabeln di Gabri</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -128,7 +132,7 @@ code{background:var(--paper);border:1px solid var(--line);border-radius:6px;padd
 
 <div class="wrap" id="app">
   <header class="top">
-    <div><p class="label">Deutsch · Vokabeln</p><h1 style="color:var(--pen);font-weight:800">UE Gabriele</h1></div>
+    <div><p class="label">Deutsch · Vokabeln · 1.1</p><h1 style="color:var(--pen);font-weight:800">UE Gabriele</h1></div>
   </header>
   <p class="muted">Caricamento…</p>
 </div>
@@ -279,7 +283,7 @@ function parseList(text){const out=[];for(let line of text.split(/\r?\n/)){line=
 
 /* ---------- viste ---------- */
 function shell(inner){return `
-  <header class="top"><div><p class="label">Deutsch · Vokabeln</p><h1 style="color:var(--pen);font-weight:800">UE Gabriele</h1><p class="tagline">Allora? La vostra insegnante pensa che siete qua a pettinare le bambole? Fatele vedere un po’ chi siete.</p></div></header>
+  <header class="top"><div><p class="label">Deutsch · Vokabeln · 1.1</p><h1 style="color:var(--pen);font-weight:800">UE Gabriele</h1><p class="tagline">Allora? La vostra insegnante pensa che siete qua a pettinare le bambole? Fatele vedere un po’ chi siete.</p></div></header>
   <nav class="tabs" aria-label="Sezioni">
     <button data-go="home" ${view==="home"?'aria-current="page"':""}>Stasera</button>
     <button data-go="progressi" ${view==="progressi"?'aria-current="page"':""}>Progressi</button>
@@ -420,7 +424,7 @@ function finishSera(){const t=today();S.tent=Object.assign({},S.tent);S.wrong=Ob
    Ogni famiglia sceglie un codice; il telefono del ragazzo invia con quel codice,
    il genitore inserisce lo stesso codice e vede solo i dati della sua famiglia.
    I dati finiscono in un Foglio Google tramite Apps Script (REPORT_URL). */
-const REPORT_URL="";
+const REPORT_URL="https://script.google.com/macros/s/AKfycbxkERFGPyVxGrUkB6F6wfQl43mvrlk0PTyW3d_w0FZwjaRzMVEb5nsAj8_EesqjYTVRLA/exec";
 function report(){if(!REPORT_URL||!S.invia||!S.famiglia)return;const cur=currentList(),bad=Q.batch.filter(w=>Q.bad.has(w.id));
   const rr={};for(const k of [1,2,3,4,5,6]){const x=Q.rs[k];rr["r"+k]=x?`${x.ok}/${x.n}`:""}
   S.outbox=[...(S.outbox||[]),{app:"vokabeln-gabri",id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),famiglia:S.famiglia,nome:S.nome||"",data:today(),capitolo:cur.nome.split(" · ")[0],
