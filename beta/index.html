@@ -128,7 +128,7 @@ code{background:var(--paper);border:1px solid var(--line);border-radius:6px;padd
 
 <div class="wrap" id="app">
   <header class="top">
-    <div><p class="label">Deutsch · Vokabeln</p><h1 style="color:var(--pen);font-weight:800">UE Gabriele e Nicolò</h1></div>
+    <div><p class="label">Deutsch · Vokabeln</p><h1 style="color:var(--pen);font-weight:800">UE Gabriele</h1></div>
   </header>
   <p class="muted">Caricamento…</p>
 </div>
@@ -279,7 +279,7 @@ function parseList(text){const out=[];for(let line of text.split(/\r?\n/)){line=
 
 /* ---------- viste ---------- */
 function shell(inner){return `
-  <header class="top"><div><p class="label">Deutsch · Vokabeln</p><h1 style="color:var(--pen);font-weight:800">UE Gabriele e Nicolò</h1><p class="tagline">Allora? La vostra insegnante pensa che siete qua a pettinare le bambole? Fatele vedere un po’ chi siete.</p></div></header>
+  <header class="top"><div><p class="label">Deutsch · Vokabeln</p><h1 style="color:var(--pen);font-weight:800">UE Gabriele</h1><p class="tagline">Allora? La vostra insegnante pensa che siete qua a pettinare le bambole? Fatele vedere un po’ chi siete.</p></div></header>
   <nav class="tabs" aria-label="Sezioni">
     <button data-go="home" ${view==="home"?'aria-current="page"':""}>Stasera</button>
     <button data-go="progressi" ${view==="progressi"?'aria-current="page"':""}>Progressi</button>
