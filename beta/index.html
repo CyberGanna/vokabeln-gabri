@@ -1,0 +1,677 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#2747d6">
+<link rel="icon" type="image/png" href="../icon-192.png">
+<meta name="robots" content="noindex">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}[hidden]{display:none!important}</style>
+</head>
+<body>
+<div style="background:#b45309;color:#fff;font:700 13px/1.2 system-ui,sans-serif;text-align:center;padding:6px">VERSIONE DI PROVA · i progressi qui non contano</div>
+<title>Vokabeln di Gabri</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap">
+<style>
+/* Layout: a single column "Heft" (German school exercise book) on squared paper; one task per screen, big tap targets. */
+:root{
+  --paper:#f6f8fc; --sheet:#ffffff; --grid:#e3e9f4; --ink:#1b2340; --muted:#5d6785;
+  --pen:#2747d6; --pen-soft:#e5eafc; --margin:#e0505a;
+  --ok:#1f8a4c; --ok-soft:#e1f4e8; --bad:#c8323d; --bad-soft:#fbe5e6;
+  --der:#2459d6; --die:#d23a4a; --das:#1d8a55;
+  --line:#d5dcea;
+  --display:"Bricolage Grotesque",ui-rounded,"Segoe UI",system-ui,sans-serif;
+  --body:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#11152a; --sheet:#1a2038; --grid:#1d2440; --ink:#e9edf9; --muted:#a2abc6;
+  --pen:#8ea4ff; --pen-soft:#27305a; --margin:#ff7a83;
+  --ok:#5fd394; --ok-soft:#16382a; --bad:#ff7d86; --bad-soft:#40202a;
+  --der:#83a6ff; --die:#ff8592; --das:#6fdca3; --line:#2f3858; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#11152a; --sheet:#1a2038; --grid:#1d2440; --ink:#e9edf9; --muted:#a2abc6;
+  --pen:#8ea4ff; --pen-soft:#27305a; --margin:#ff7a83;
+  --ok:#5fd394; --ok-soft:#16382a; --bad:#ff7d86; --bad-soft:#40202a;
+  --der:#83a6ff; --die:#ff8592; --das:#6fdca3; --line:#2f3858; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font:17px/1.5 var(--body);
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:22px 22px;min-height:100vh;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px 40px}
+.wrap{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;letter-spacing:-.01em}
+h1{font-size:1.9rem;font-weight:800;line-height:1.1}
+h2{font-size:1.35rem;font-weight:800}
+h3{font-size:1.05rem;font-weight:600}
+p{margin:0}
+.muted{color:var(--muted)}
+.small{font-size:.88rem}
+.label{font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700}
+.tagline{font-family:var(--display);font-weight:600;font-size:1.1rem;color:var(--pen);margin-top:4px}
+.db-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.db-tile{border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.db-tile b{font-family:var(--display);font-size:1.8rem;line-height:1.05;font-variant-numeric:tabular-nums}
+.db-chart{position:relative}.db-chart svg{display:block;width:100%;height:auto}
+.db-tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--paper);font-size:.8rem;padding:5px 8px;border-radius:8px;white-space:nowrap;transform:translate(-50%,-115%)}
+.db-scroll{overflow-x:auto}
+.db-table{border-collapse:collapse;width:100%;font-size:.86rem;font-variant-numeric:tabular-nums}
+.db-table th,.db-table td{padding:6px 6px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+.db-table th{font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.db-table .r{text-align:center}
+.db-pill{display:inline-block;padding:1px 6px;border-radius:99px;font-weight:700;font-size:.78rem}
+.db-pill.ok{background:var(--ok-soft);color:var(--ok)}.db-pill.mid{background:var(--pen-soft);color:var(--pen)}.db-pill.bad{background:var(--bad-soft);color:var(--bad)}
+.rounds{margin:0;padding-left:1.3em;display:grid;gap:2px}
+.phases{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}.phases span{height:6px;border-radius:99px;background:var(--grid)}.phases .done{background:var(--ok)}.phases .now{background:var(--pen)}
+header.top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+nav.tabs{display:flex;gap:6px;background:var(--sheet);border:1px solid var(--line);border-radius:14px;padding:4px}
+nav.tabs button{flex:1;border:0;background:transparent;color:var(--muted);font:700 .92rem var(--body);padding:10px 6px;border-radius:10px;cursor:pointer}
+nav.tabs button[aria-current="page"]{background:var(--pen-soft);color:var(--pen)}
+.sheet{background:var(--sheet);border:1px solid var(--line);border-radius:16px;padding:18px 18px 18px 30px;position:relative;display:flex;flex-direction:column;gap:14px}
+.sheet::before{content:"";position:absolute;left:16px;top:0;bottom:0;width:2px;background:var(--margin);opacity:.55}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.grow{flex:1;min-width:0}
+button,.btn{font:700 1rem var(--body);border-radius:12px;border:2px solid var(--line);background:var(--sheet);color:var(--ink);padding:12px 16px;cursor:pointer;min-height:48px}
+button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:3px solid var(--pen);outline-offset:2px}
+.primary{background:var(--pen);border-color:var(--pen);color:#fff}
+:root[data-theme="dark"] .primary{color:#0d1330}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .primary{color:#0d1330}}
+.big{width:100%;font-size:1.15rem;padding:16px}
+.ghost{border-color:transparent;background:transparent;color:var(--pen);padding:8px 10px;min-height:40px}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{border:2px solid var(--line);border-radius:999px;padding:8px 14px;font-weight:700;font-size:.95rem;background:var(--sheet);color:var(--ink);min-height:42px}
+.chip[aria-pressed="true"]{border-color:var(--pen);background:var(--pen-soft);color:var(--pen)}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.stat{display:flex;flex-direction:column;gap:2px}
+.stat b{font-family:var(--display);font-size:1.8rem;line-height:1;font-variant-numeric:tabular-nums}
+.bar{height:10px;border-radius:99px;background:var(--grid);overflow:hidden;display:flex}
+.bar span{display:block;height:100%}
+.days{display:grid;grid-template-columns:repeat(14,1fr);gap:4px}
+.day{aspect-ratio:1;border-radius:5px;background:var(--grid);max-width:100%}
+.day.on{background:var(--ok)}
+.day.mid{background:color-mix(in srgb,var(--ok) 45%,var(--grid))}
+.listitem{display:flex;gap:12px;align-items:center;padding:10px 0;border-top:1px dashed var(--line)}
+.listitem:first-of-type{border-top:0}
+input[type=text],textarea,select{width:100%;font:1.05rem var(--body);color:var(--ink);background:var(--paper);border:2px solid var(--line);border-radius:12px;padding:12px 14px}
+textarea{min-height:170px;font-size:.98rem;line-height:1.5}
+/* quiz */
+.progress{display:flex;align-items:center;gap:10px}
+.progress .bar{flex:1}
+.prompt{display:flex;flex-direction:column;gap:6px;align-items:flex-start;padding-block:8px}
+.word{font-family:var(--display);font-weight:800;font-size:clamp(1.8rem,8vw,2.6rem);line-height:1.1;overflow-wrap:anywhere}
+.art-der{color:var(--der)} .art-die{color:var(--die)} .art-das{color:var(--das)}
+.opts{display:grid;gap:10px}
+.opt{text-align:left;font-size:1.1rem;font-weight:700;padding:14px 16px}
+.opt.sel{border-color:var(--pen);background:var(--pen-soft);color:var(--pen)}
+button:disabled{cursor:default}
+button:disabled:not(.opt){opacity:.45}
+.opt.ok{border-color:var(--ok);background:var(--ok-soft)}
+.opt.bad{border-color:var(--bad);background:var(--bad-soft)}
+.feedback{border-radius:12px;padding:12px 14px;font-weight:700;display:flex;flex-direction:column;gap:4px}
+.feedback.ok{background:var(--ok-soft);color:var(--ok)}
+.feedback.bad{background:var(--bad-soft);color:var(--bad)}
+.feedback .ans{color:var(--ink);font-weight:400}
+.flip{min-height:180px;display:flex;flex-direction:column;justify-content:center;gap:8px;cursor:pointer;border:2px dashed var(--line);border-radius:14px;padding:18px;background:var(--paper)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.say{border-radius:999px;min-height:40px;padding:6px 12px;font-size:.9rem}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.88rem}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:middle}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:12px;font-weight:700;z-index:20;max-width:calc(100% - 32px)}
+.confetti{font-family:var(--display);font-size:3rem;line-height:1}
+kbd{font:inherit;background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:0 6px}
+code{background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-size:.92em}
+@media (prefers-reduced-motion:no-preference){.pop{animation:pop .25s ease-out}@keyframes pop{from{transform:scale(.96);opacity:.6}to{transform:none;opacity:1}}}
+</style>
+
+<div class="wrap" id="app">
+  <header class="top">
+    <div><p class="label">Deutsch · Vokabeln</p><h1 style="color:var(--pen);font-weight:800">UE Gabriele e Nicolò</h1></div>
+  </header>
+  <p class="muted">Caricamento…</p>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+/* ------------------------------------------------------------------
+   LISTE INCORPORATE: Wortlisten geni@l klick A1, Kapitel 1-6.
+   Formato parola: [tedesco, italiano]. Più traduzioni con " / ".
+   Il testo tra parentesi si vede ma non serve scriverlo.
+------------------------------------------------------------------- */
+const BUILTIN = [
+  {"id": "k1", "nome": "Kapitel 1 · Was weisst du über D-A-CH?", "parole": [["die Band", "il gruppo musicale"], ["Berlin", "Berlino"], ["Deutschland", "Germania"], ["Österreich", "Austria"], ["die Schokolade", "la cioccolata"], ["die Schweiz", "la Svizzera"], ["das Snowboard", "lo snowboard"], ["Wien", "Vienna"], ["die Zahl", "il numero"], ["das Foto", "la fotografia"], ["der Fussball", "il calcio / il pallone da calcio"], ["der Ton", "il suono"], ["der Dialog", "il dialogo"], ["die Frau", "la signora"], ["der Herr", "il signore"], ["der Name", "il nome"], ["das Heft", "il quaderno"], ["die Musik", "la musica"], ["das Alphabet", "l'alfabeto"], ["der Umlaut", "la dieresi (due puntini)"], ["die CD", "il CD"], ["die Chips", "le patatine"], ["die Cola", "la coca cola"], ["der Computer", "il computer"], ["der Hamburger", "l'hamburger"], ["die Pizza", "la pizza"], ["die Sprache", "la lingua (parlata)"], ["das Essen", "il cibo"], ["der Film", "il film"], ["die Liste", "la lista"], ["das Projekt", "il progetto"], ["der Sport", "lo sport"], ["die Technik", "la tecnica"], ["das Trinken", "il bere"], ["das Konzert", "il concerto"], ["der Text", "il testo"], ["das Deutsch", "il tedesco (lingua tedesca)"], ["die Grammatik", "la grammatica"], ["das Kapitel", "il capitolo"], ["der Satz", "la frase"], ["das Wort", "la parola"], ["die Ahnung", "l'idea"], ["wissen", "sapere / conoscere"], ["ich weiss", "io so / io conosco"], ["sein", "essere"], ["er ist", "lui è"], ["lesen", "leggere"], ["er liest", "lui legge"], ["gehen", "andare"], ["heissen", "chiamarsi"], ["du heisst", "tu ti chiami"], ["hören", "sentire / ascoltare"], ["mögen", "apprezzare / piacere"], ["er mag", "lui apprezza (a lui piace)"], ["spielen", "giocare / suonare / recitare"], ["sprechen", "parlare"], ["er spricht", "lui parla"], ["markieren", "evidenziare"], ["schreiben", "scrivere"], ["üben", "esercitare"], ["buchstabieren", "compitare (fare lo spelling)"], ["diktieren", "dettare"], ["können", "essere in grado / saper fare"], ["er kann", "lui è in grado di"], ["kennen", "conoscere"], ["machen", "fare"], ["sammeln", "raccogliere"], ["helfen", "aiutare"], ["er hilft", "lui aiuta"], ["notieren", "annotare"], ["vergleichen", "confrontare"], ["verstehen", "capire"], ["begrüssen", "salutare (quando ci si incontra)"], ["verabschieden", "salutare (quando ci si congeda)"], ["ich", "io"], ["du", "tu"], ["er", "lui"], ["sie", "lei"], ["mit", "con"], ["von", "di"], ["was?", "cosa?"], ["wer?", "chi?"], ["wo?", "dove?"], ["wie geht's?", "come va?"], ["wie?", "come?"], ["wie heisst du?", "come ti chiami?"], ["wie bitte?", "come, prego?"], ["welche?", "quale?"], ["bis bald", "a presto"], ["gute Nacht", "buona notte"], ["guten Abend", "buona sera"], ["guten Morgen", "buon mattino"], ["guten Tag", "buon giorno"], ["hallo / hi", "ciao (quando ci si incontra)"], ["tschau / tschüs", "ciao (quando ci si congeda)"], ["auf Wiedersehen", "arrivederci"], ["gut", "bene"], ["kurz", "corto / breve"], ["lang", "lungo"], ["international", "internazionale"], ["bekannt", "noto / conosciuto"], ["pünktlich", "puntuale"], ["cool", "eccezionale"], ["bald", "presto"], ["hier", "qui"], ["jemand", "qualcuno"], ["danke", "grazie"], ["ja", "sì"], ["nein", "no"], ["zu zweit", "a due a due"], ["und", "e"], ["auch", "anche"], ["kein", "nessun"], ["mein", "il mio"]]},
+  {"id": "k2", "nome": "Kapitel 2 · Die Medien-AG", "parole": [["die Ferien", "le vacanze"], ["das Hobby", "l'hobby"], ["das Interview", "l'intervista"], ["die Kamerafrau", "l'operatrice video"], ["die Lampe", "la lampada"], ["die AG (Arbeitsgemeinschaft)", "il doposcuola"], ["die Nummer", "il numero"], ["die Party", "la festa"], ["die Schule", "la scuola"], ["die Stadt", "la città"], ["die Technikerin", "il tecnico donna"], ["das Abendessen", "la cena"], ["das Fussballspiel", "la partita di calcio"], ["der Park", "il parco"], ["der Schulweg", "il tragitto casa-scuola"], ["die Szene", "la scena"], ["der Freund", "l'amico"], ["die Gitarre", "la chitarra"], ["das Gymnasium", "il liceo"], ["die Information", "l'informazione"], ["die Klasse", "la classe"], ["das Klavier", "il pianoforte"], ["der Ski", "lo sci"], ["das Video", "il video"], ["das Beispiel", "l'esempio"], ["das Plakat", "il manifesto"], ["Bern", "Berna"], ["die Endung", "la desinenza"], ["das Jahr", "l'anno"], ["der Musiklehrer", "il maestro di musica"], ["die Regel", "la regola"], ["die Tabelle", "la tabella"], ["die Tafel", "la lavagna"], ["das Verb", "il verbo"], ["die Flagge", "la bandiera"], ["das Land", "la nazione / il paese"], ["der Ländername", "il nome della nazione"], ["das Englisch", "l'inglese"], ["das Französisch", "il francese"], ["das Italienisch", "l'italiano"], ["die Aussprache", "la pronuncia"], ["die Banane", "la banana"], ["die Gruppe", "il gruppo"], ["das Restaurant", "il ristorante"], ["das Telefon", "il telefono"], ["der Fisch", "il pesce"], ["die Antwort", "la risposta"], ["der Spass", "il divertimento"], ["die Frage", "la domanda"], ["der Rap", "la musica rap"], ["die Spaghetti", "gli spaghetti"], ["das Tier", "l'animale"], ["das Alter", "l'età"], ["die Freundin", "l'amica"], ["der Gruss", "il saluto"], ["der Hund", "il cane"], ["das Instrument", "lo strumento"], ["die E-Mail", "il messaggio di posta elettronica"], ["das Internet", "l'internet"], ["die Kamera", "la telecamera"], ["filmen", "filmare / girare un film"], ["finden", "trovare"], ["fotografieren", "fotografare"], ["kontrollieren", "controllare"], ["nummerieren", "numerare"], ["sehen", "vedere"], ["er sieht", "lui vede"], ["zuordnen", "associare"], ["arbeiten", "lavorare"], ["bearbeiten", "rielaborare"], ["fahren", "andare con un mezzo"], ["er fährt", "lui va (con un mezzo)"], ["gehen", "andare (a piedi) / frequentare"], ["nennen", "nominare / dare il nome"], ["sagen", "dire"], ["schauen", "guardare"], ["schwimmen", "nuotare"], ["surfen", "fare surf"], ["tauchen", "fare immersioni"], ["wohnen", "abitare"], ["antworten", "rispondere"], ["fragen", "domandare"], ["ergänzen", "completare"], ["nachsprechen", "ripetere"], ["lieben", "amare"], ["liegen", "giacere / situarsi"], ["singen", "cantare"], ["vorlesen", "leggere ad alta voce"], ["kochen", "cucinare"], ["kommen", "venire"], ["stellen", "porre"], ["haben", "avere"], ["woher?", "da dove?"], ["für", "per"], ["alles", "tutto"], ["super", "super"], ["toll", "fantastico"], ["gern", "volentieri"], ["alt", "vecchio"], ["viel", "molto"], ["anders", "diverso"], ["gleich", "uguale"], ["laut", "ad alta voce"], ["schwer", "difficile / pesante"], ["genau", "esatto"], ["lieb", "amorevole / caro"], ["wichtig", "importante"], ["jetzt", "adesso"], ["da", "qui / lì"], ["sehr", "molto"], ["so", "così"], ["wir", "noi"], ["man", "si (pronome indefinito)"], ["ein / eine", "un / una"], ["oder", "o / oppure"], ["zu Hause", "a casa"], ["ein bisschen", "un po'"], ["einmal", "una volta"], ["nicht", "non"], ["noch", "ancora"], ["aber", "ma"], ["dein", "il tuo"], ["bitte", "per favore"]]},
+  {"id": "k3", "nome": "Kapitel 3 · Mein Schulalltag", "parole": [["das Fenster", "la finestra"], ["das Klassenzimmer", "l'aula"], ["die Lehrerin", "l'insegnante / la docente"], ["das Regal", "la libreria / lo scaffale"], ["der Schrank", "l'armadio"], ["der Schüler", "l'allievo"], ["die Schülerin", "l'allieva"], ["die Schultasche", "la cartella"], ["der Stuhl", "la sedia"], ["der Tisch", "il tavolo"], ["die Uhr", "l'orologio"], ["die Tasche", "la borsa"], ["das Bild", "l'immagine / l'illustrazione"], ["der Bleistift", "la matita"], ["die Brille", "gli occhiali"], ["das Deutschbuch", "il libro di tedesco"], ["die Fahrkarte", "il biglietto (per un mezzo di trasporto)"], ["der Füller", "la stilo / la penna stilografica"], ["das Handy", "il cellulare"], ["der Kugelschreiber / der Kuli", "la penna a sfera / la biro"], ["das Lineal", "la riga / il righello"], ["das Mäppchen", "l'astuccio"], ["der Marker", "l'evidenziatore"], ["das Pausenbrot", "la merenda"], ["der Radiergummi", "la gomma (per cancellare)"], ["die Sache", "la cosa"], ["die Schere", "le forbici"], ["die Schulsachen", "il materiale scolastico"], ["der Spitzer", "il temperino"], ["die Sporthose", "il pantaloncino da ginnastica"], ["der Stundenplan", "l'orario scolastico"], ["das Vokabelheft", "il quaderno dei vocaboli"], ["das Wörterbuch", "il vocabolario"], ["der Artikel", "l'articolo"], ["der Ball", "il pallone"], ["der Elefant", "l'elefante"], ["die Farbe", "il colore"], ["die Hausaufgabe", "il compito (per casa)"], ["die Vokabel", "il vocabolo"], ["der Geldbeutel", "il portamonete"], ["das Eis", "il gelato"], ["der Schulhof", "il cortile della scuola"], ["der Sportplatz", "il campo sportivo"], ["Basketball", "il basket / la pallacanestro"], ["das Fahrrad", "la bicicletta"], ["der Mist", "la porcheria / la scalogna"], ["das Geld", "i soldi"], ["das Interesse", "l'interesse"], ["die Lust", "la voglia"], ["die Zeit", "il tempo"], ["ansehen (er sieht an)", "guardare (attentamente)"], ["zeigen", "mostrare"], ["lernen", "imparare / apprendere / studiare"], ["verbinden", "collegare"], ["wollen (er will)", "volere"], ["mitkommen (er kommt mit)", "venire / andare (con qualcuno)"], ["farbig", "colorato"], ["identisch", "identico"], ["richtig", "giusto"], ["stimmen", "essere esatto / essere giusto"], ["einfach", "semplice"], ["mehr", "di più"], ["noch", "ancora"], ["dann", "poi"], ["vielleicht", "forse"]]},
+  {"id": "k4", "nome": "Kapitel 4 · Schule... Schule... Schule", "parole": [["das Schulfach (¨er) / das Fach (¨er)", "la materia scolastica"], ["Geografie", "geografia"], ["Biologie / Bio", "biologia"], ["Mathematik", "matematica"], ["Geschichte", "storia"], ["Kunst", "educazione visiva / arte"], ["Musik", "musica"], ["Physik", "fisica"], ["Sozialkunde", "civica"], ["Sport", "educazione fisica"], ["Chemie", "chimica"], ["Latein", "latino"], ["Religion", "religione"], ["das Zeugnis (-se)", "la pagella"], ["die Note (-n)", "il voto"], ["der Chor (¨e)", "il coro"], ["die Pause (-n)", "la ricreazione / la pausa"], ["der Unterricht (solo singolare)", "la lezione / l'insegnamento"], ["die Schulzeitung (-en)", "il giornale della scuola"], ["die Schulband (-s)", "il gruppo musicale della scuola"], ["die Mittagspause (-n)", "la pausa pranzo"], ["der Fehler (-)", "l'errore"], ["die Cafeteria (-s)", "la caffetteria"], ["zum Beispiel (z.B.)", "per esempio"], ["das Orchester (-)", "l'orchestra"], ["der Direktor (-en)", "il direttore"], ["der Schultag (-e)", "la giornata di scuola"], ["Lieblings-", "preferito"], ["die Stunde (-n)", "l'ora / l'ora di lezione"], ["der Wochentag (-e)", "il giorno della settimana"], ["der Montag (-e)", "il lunedì"], ["der Dienstag (-e)", "il martedì"], ["der Mittwoch (-e)", "il mercoledì"], ["der Donnerstag (-e)", "il giovedì"], ["der Freitag (-e)", "il venerdì"], ["der Samstag (-e)", "il sabato"], ["der Sonntag (-e)", "la domenica"], ["das Wochenende (-n)", "il fine settimana"], ["der Morgen (-)", "la mattina / il mattino"], ["der Nachmittag (-e)", "il pomeriggio"], ["die Minute (-n)", "il minuto"], ["die Sekunde (-n)", "il secondo"], ["der Moment (-e)", "il momento"], ["das Viertel (-)", "il quarto"], ["die Uhr", "l'ora"], ["das Geschenk (-e)", "il regalo"], ["das Obst (solo singolare)", "la frutta"], ["die Mode (-n)", "la moda"], ["die Insel (-n)", "l'isola"], ["die Adresse (-n)", "l'indirizzo"], ["die Idee (-n)", "l'idea"], ["das Auto (-s)", "l'auto / la macchina"], ["der Junge (-n)", "il ragazzo"], ["das Kärtchen (-)", "il cartoncino"], ["die Katze (-n)", "il gatto"], ["das Mädchen (-)", "la ragazza"], ["die Seite (-n)", "la pagina"], ["der Schluss (solo singolare)", "il termine"], ["der Kollege (-n)", "il collega"], ["bekommen", "ricevere"], ["geben (er gibt)", "dare"], ["es gibt", "c'è / ci sono"], ["beantworten", "rispondere"], ["korrigieren", "correggere"], ["wählen", "scegliere"], ["anfangen (er fängt an)", "iniziare"], ["holen", "andare a prendere"], ["fehlen", "mancare"], ["aufschreiben (er schreibt auf)", "prendere nota / annotare"], ["vorstellen (er stellt vor)", "presentare"], ["zählen", "contare"], ["interessant", "interessante"], ["lustig", "divertente"], ["nett", "gentile"], ["schulfrei", "libero dalle lezioni"], ["total", "assolutamente"], ["intelligent", "intelligente"], ["klar", "chiaro / certo / sicuro / chiaramente"], ["halb", "mezzo / mezza / metà"], ["spät", "tardi"], ["best-", "migliore"], ["kompliziert", "complicato / difficile"], ["am besten", "nel modo migliore"], ["klein", "piccolo"], ["heute", "oggi"], ["immer", "sempre"], ["vor", "prima"], ["von ... bis", "da ... a"], ["wann?", "quando?"], ["alle", "tutti"], ["wie viel?", "quanto?"], ["um", "alle (orario)"], ["zweimal", "due volte"], ["zuerst", "prima / all'inizio"]]},
+  {"id": "k5", "nome": "Kapitel 5 · Meine Lieblingstiere", "parole": [["das Auge (-n)", "l'occhio"], ["das Fell (-e)", "il pelo di un animale"], ["der Bauch (¨e)", "la pancia"], ["das Bein (-e)", "la gamba"], ["der Kopf (¨e)", "la testa"], ["der Rücken (-)", "la schiena"], ["der Schwanz (¨e)", "la coda"], ["der Tiername (-n)", "il nome dell'animale"], ["das Haustier (-e)", "l'animale domestico"], ["das Lieblingstier (-e)", "l'animale preferito"], ["die Fliege (-n)", "la mosca"], ["der Papagei (-en)", "il pappagallo"], ["das Pferd (-e)", "il cavallo"], ["der Pinguin (-e)", "il pinguino"], ["das Känguru (-s)", "il canguro"], ["das Krokodil (-e)", "il coccodrillo"], ["der Tiger (-)", "la tigre"], ["die Maus (¨e)", "il topo"], ["der Vogel (¨)", "l'uccello"], ["das Kamel (-e)", "il cammello"], ["die Schlange (-n)", "il serpente"], ["das Pony (-s)", "il pony"], ["die Ente (-n)", "l'anatra"], ["der Hahn (¨e)", "il gallo"], ["die Kuh (¨e)", "la mucca"], ["das Schwein (-e)", "il maiale"], ["das Haus (¨er)", "la casa"], ["der Tipp (-s)", "il consiglio"], ["der Bruder (¨)", "il fratello"], ["der/die Deutsche (-n)", "il tedesco / la tedesca (nazionalità)"], ["die Eltern", "i genitori"], ["das Ergebnis (-se)", "il risultato"], ["das Prozent (-e)", "la percentuale / il percento"], ["die Leute (solo plurale)", "la gente"], ["der Mensch (-en)", "l'essere umano"], ["die Arbeit (-en)", "il lavoro"], ["die Aufgabe (-n)", "l'esercizio"], ["das Paar (-e)", "la coppia"], ["der Fischer (-)", "il pescatore"], ["der Garten (¨)", "il giardino"], ["das Zimmer (-)", "la camera"], ["die Beschreibung (-en)", "la descrizione"], ["das Schwimmbad (¨er)", "la piscina"], ["der/die Erwachsene (-n)", "l'adulto"], ["die Familie (-n)", "la famiglia"], ["der Frisör (-e)", "il parrucchiere"], ["das Futter", "il cibo per gli animali / il mangime"], ["das Kind (-er)", "il bambino"], ["die Milliarde (-n)", "il miliardo"], ["der Platz (¨e)", "il posto"], ["der Weltmeister (-)", "il campione del mondo"], ["laufen", "correre / camminare veloce"], ["er läuft", "lui corre / lui cammina veloce"], ["fischen", "pescare"], ["fliegen", "volare"], ["stehen", "stare in piedi"], ["essen", "mangiare"], ["er isst", "lui mangia"], ["klingeln", "squillare"], ["rufen", "chiamare"], ["trinken", "bere"], ["weg sein (er ist weg)", "essere sparito"], ["funktionieren", "funzionare"], ["kaufen", "comprare"], ["aussehen", "avere l'aspetto"], ["ausgeben", "spendere"], ["beschreiben", "descrivere"], ["hinter", "dietro"], ["ihr / ihre", "il suo di lei / la sua di lei"], ["sein / seine", "il suo di lui / la sua di lui"], ["braun", "marrone"], ["schwarz", "nero"], ["weiß", "bianco"], ["blau", "blu"], ["bunt", "colorato / multicolore"], ["gelb", "giallo"], ["grau", "grigio"], ["grün", "verde"], ["rot", "rosso"], ["dunkel", "scuro"], ["hell", "chiaro"], ["orange", "arancione"], ["allein", "da solo"], ["sinnvoll", "sensato"], ["frisch", "fresco"], ["kalt", "freddo"], ["schön", "bello"], ["berühmt", "famoso / conosciuto"], ["nie", "mai"], ["nur", "solo"], ["sogar", "addirittura / perfino"], ["und so weiter (usw.)", "eccetera (ecc.)"], ["wenn", "quando"], ["zu dritt", "in tre"], ["trotzdem", "tuttavia / ciononostante"]]},
+  {"id": "k6", "nome": "Kapitel 6 · Lust auf Freizeit?", "parole": [["die Freizeit", "il tempo libero"], ["der Comic (-s)", "il fumetto"], ["das Rad (¨er)", "la bici"], ["das Wasser (senza plurale)", "l'acqua"], ["der Freizeitpark (-s)", "il parco divertimenti"], ["die Hose (-n)", "i pantaloni"], ["das Kino (-s)", "il cinema"], ["der Meter (-)", "il metro"], ["der Sänger (-)", "il cantante"], ["der Turm (¨e)", "il trampolino (in piscina)"], ["das Museum (die Museen)", "il museo"], ["der Bahnhof (¨e)", "la stazione"], ["der Abend (-e)", "la sera"], ["die Bank (-en)", "la banca"], ["die Bank (¨e)", "la panchina"], ["der Bus (-se)", "il bus"], ["die Geschichte (-n)", "la storia / il racconto"], ["die Jeans (-)", "i jeans"], ["die Lederjacke (-n)", "la giacca di pelle"], ["das Missverständnis (-se)", "il malinteso / l'equivoco"], ["das Top (-s)", "il top"], ["der Anfang (¨e)", "l'inizio"], ["das Ende (-n)", "la fine"], ["das Radio (-s)", "la radio"], ["der Fernseher (-)", "il televisore"], ["der Kaffee (-s)", "il caffè (da bere)"], ["der Kakao (solo singolare)", "il cacao"], ["der Tagesablauf (¨e)", "lo svolgimento della giornata"], ["die Schwester (-n)", "la sorella"], ["das Fest (-e)", "la festa"], ["benutzen", "usare / utilizzare"], ["sich freuen", "rallegrarsi / essere contenti"], ["gewinnen", "vincere"], ["shoppen", "fare shopping"], ["leidtun (es tut leid)", "dispiacere"], ["mitgehen (er geht mit)", "andare insieme / accompagnare"], ["tanzen", "ballare"], ["abholen (er holt ab)", "andare a prendere"], ["anrufen (er ruft an)", "telefonare"], ["anziehen (er zieht an)", "mettere / indossare"], ["aussteigen (er steigt aus)", "scendere da un mezzo"], ["einsteigen (er steigt ein)", "salire in un mezzo"], ["los sein (es ist los)", "succedere / accadere"], ["nehmen", "prendere"], ["regnen", "piovere"], ["tragen (er trägt)", "portare / indossare"], ["treffen (er trifft)", "incontrare"], ["zurückfahren (er fährt zurück)", "tornare (con un mezzo)"], ["ankommen (er kommt an)", "arrivare"], ["anmachen (er macht an)", "accendere"], ["aufhören (er hört auf)", "terminare"], ["aufstehen (er steht auf)", "alzarsi"], ["abschreiben (er schreibt ab)", "copiare"], ["einkaufen (er kauft ein)", "fare la spesa"], ["feiern", "festeggiare"], ["freihaben (er hat frei)", "essere liberi"], ["müssen (er muss)", "dovere / essere obbligati"], ["vorbeikommen (er kommt vorbei)", "passare da qualcuno"], ["telefonieren", "telefonare"], ["Lust haben (er hat Lust)", "avere voglia"], ["schade", "peccato"], ["neu", "nuovo"], ["spitze", "fantastico"], ["langweilig", "noioso"], ["verrückt", "pazzo / matto / folle"], ["froh", "contento"], ["glücklich", "felice"], ["nass", "bagnato"], ["wütend", "arrabbiato"], ["früh", "presto"], ["schnell", "veloce"], ["blöd", "stupido / sciocco"], ["schrecklich", "terribile / terribilmente"], ["fleißig", "diligente / impegnato"], ["viel", "molto / tanto"], ["prima", "magnifico / eccezionale"], ["einfach", "semplice / semplicemente"], ["morgen", "domani"], ["mal sehen", "stare a vedere"], ["gleich", "a momenti"], ["schon", "già"], ["zu Fuß", "a piedi"], ["manchmal", "talvolta / a volte"], ["oft", "spesso"], ["wieder", "di nuovo"]]}
+];
+
+const INTERVALS=[0,1,2,4,7,15,30]; // giorni per scatola 0..6
+/* Regole di Karim. Ogni sera 20 parole (dal capitolo 2: 17 del capitolo + 3 del precedente).
+   Le stesse parole passano, nella stessa sera, da più round:
+   1 tedesco → italiano, scelta tra 5   2 italiano → tedesco, scelta tra 5
+   3 tedesco → scrivere in italiano    4 italiano → scrivere in tedesco
+   e solo per i nomi: 5 nome senza articolo → scrivere l'articolo, 6 italiano → articolo + nome.
+   Una parola è imparata se non la sbaglia mai al primo colpo in nessun round;
+   altrimenti torna per prima la sera dopo. Imparate tutte, si passa al capitolo successivo. */
+const FASI={1:{mode:"scelta",dir:"de-it",nome:"Tedesco → italiano, scegli tra 5"},2:{mode:"scelta",dir:"it-de",nome:"Italiano → tedesco, scegli tra 5"},
+  3:{mode:"scrivi",dir:"de-it",nome:"Tedesco → scrivi in italiano"},4:{mode:"scrivi",dir:"it-de",nome:"Italiano → scrivi in tedesco"},
+  5:{mode:"articolo",dir:"de-it",nome:"Solo nomi: scrivi l'articolo (der, die, das)"},6:{mode:"scrivi",dir:"it-de",nome:"Solo nomi: italiano → tedesco con l'articolo giusto"}};
+/* Fasi 5 e 6 solo per i nomi con articolo: 5 vede il nome senza articolo e scrive l'articolo,
+   6 vede l'italiano e scrive articolo + nome. */
+const maxPh=w=>/^(der|die|das)\s/i.test(w.de)?6:4;
+const PER_NIGHT=20, OLD_PER_NIGHT=3, EXTRA_STEP=5;
+/* Finite le 20 l'app chiede se ne vuole altre 5 (con tutti i round) o se si continua domani. */
+const extraToday=()=>((S.extra||{})[today()]||0);
+const newPerNight=()=>PER_NIGHT-(currentIdx()>0?OLD_PER_NIGHT:0)+extraToday();
+const DOC_PATH="progressi/beta";
+const LS_KEY="vokabeln-beta"; // v4: azzerato il 2026-10-31 sera, per Gabriele e Nicolò
+
+/* ---------- utility ---------- */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const today=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
+const addDays=(iso,n)=>{const [y,m,d]=iso.split("-").map(Number);const t=new Date(y,m-1,d+n);return t.getFullYear()+"-"+String(t.getMonth()+1).padStart(2,"0")+"-"+String(t.getDate()).padStart(2,"0")};
+function hash(s){let h=2166136261;for(const c of s){h^=c.codePointAt(0);h=Math.imul(h,16777619)}return (h>>>0).toString(36)}
+const cardId=(de,it)=>hash(de.trim().toLowerCase()+"|"+it.trim().toLowerCase());
+const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]]}return a};
+function toast(msg){const t=$("#toast");t.textContent=msg;t.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(()=>t.hidden=true,2200)}
+function lsGet(){try{return JSON.parse(localStorage.getItem(LS_KEY)||"null")}catch(e){return null}}
+function lsSet(v){try{localStorage.setItem(LS_KEY,JSON.stringify(v))}catch(e){}}
+
+/* ---------- stato ---------- */
+function blank(){return {cards:{},liste:[],giorni:{},fatto:{},direzione:"it-de",modo:"misto",updatedAt:0}}
+let S=Object.assign(blank(),lsGet()||{});
+let resetAsk=false, db=null, view="home", Q=null, saving=false, dirty=false, saveTimer=null, syncNote="";
+
+function allLists(){return [...BUILTIN,...(S.liste||[])]}
+const isDone=id=>!!(S.done||{})[id];
+function chapterDone(l){return wordsOf(l).every(w=>isDone(w.id))}
+function phaseCount(l){return wordsOf(l).filter(w=>isDone(w.id)).length}
+function currentIdx(){const L=allLists();const i=L.findIndex(l=>!chapterDone(l));return i<0?L.length-1:i}
+function currentList(){return allLists()[currentIdx()]}
+function activeIds(){return allLists().slice(0,currentIdx()+1).map(l=>l.id)}
+function wordsOf(list){return list.parole.map(([de,it])=>({id:cardId(de,it),de,it,lista:list.id}))}
+function activeWords(){const act=new Set(activeIds());const seen=new Set();const out=[];
+  for(const l of allLists()) if(act.has(l.id)) for(const w of wordsOf(l)) if(!seen.has(w.id)){seen.add(w.id);out.push(w)}
+  return out}
+function allWords(){const seen=new Set(),out=[];for(const l of allLists())for(const w of wordsOf(l))if(!seen.has(w.id)){seen.add(w.id);out.push(w)}return out}
+const cardOf=id=>S.cards[id]||null;
+
+function save(){S.updatedAt=Date.now();lsSet(S);dirty=true;clearTimeout(saveTimer);saveTimer=setTimeout(flush,1200)}
+async function flush(){if(!db||!dirty||saving)return;saving=true;dirty=false;
+  try{await db.doc(DOC_PATH).set(JSON.parse(JSON.stringify(S)));syncNote="Progressi salvati online"}
+  catch(e){syncNote="Salvati solo su questo telefono";dirty=true}
+  saving=false;if(dirty)saveTimer=setTimeout(flush,4000)}
+
+async function connect(){
+  if(!window.claude||!window.claude.use){syncNote="Progressi salvati su questo telefono. Ogni tanto fai una copia da Progressi.";render();return}
+  try{db=await window.claude.use("db")}catch(e){db=null}
+  if(!db){syncNote="Salvati solo su questo telefono";if(view==="home"||view==="progressi")render();return}
+  try{
+    const snap=await Promise.race([db.doc(DOC_PATH).get(),new Promise((_,r)=>setTimeout(()=>r(new Error("timeout")),10000))]);
+    const remote=snap.exists?snap.data():null;
+    if(remote&&(remote.updatedAt||0)>(S.updatedAt||0)){S=Object.assign(blank(),JSON.parse(JSON.stringify(remote)));lsSet(S)}
+    else if(!remote||(S.updatedAt||0)>(remote.updatedAt||0)){dirty=true;flush()}
+    syncNote="Progressi salvati online";
+  }catch(e){syncNote="Connessione lenta: progressi salvati su questo telefono"}
+  if(view!=="quiz")render();
+}
+
+/* ---------- ripetizione a scatole (Leitner) ---------- */
+function dueToday(){const t=today();return activeWords().filter(w=>{const c=cardOf(w.id);return c&&c.box>0&&c.due<=t})}
+const tentOf=id=>(S.tent||{})[id]||null;
+const isWrong=id=>!!(S.wrong||{})[id];
+function newWords(){const t=today();
+  const todo=wordsOf(currentList()).filter(w=>!isDone(w.id)&&!(tentOf(w.id)&&tentOf(w.id).d===t));
+  return [...todo.filter(w=>isWrong(w.id)),...todo.filter(w=>!isWrong(w.id))]}
+function wrongPending(){return newWords().filter(w=>isWrong(w.id)).length}
+function attemptedToday(){const t=today();return Object.values(S.tent||{}).filter(x=>x.d===t).length}
+function newLeftToday(){return Math.max(0,Math.min(newPerNight()-attemptedToday(),newWords().length))}
+function oldPool(){const i=currentIdx();return i>0?wordsOf(allLists()[i-1]):[]}
+/* Le 3 del capitolo precedente: prima quelle sbagliate più volte, poi a caso. */
+function pickHard(pool,n){const ko=w=>(cardOf(w.id)||{}).ko||0;
+  return shuffle(pool).sort((a,b)=>ko(b)-ko(a)).slice(0,n)}
+const sessionDone=()=>!!(S.fatto||{})[today()];
+function learned(words){return words.filter(w=>{const c=cardOf(w.id);return c&&c.box>=4}).length}
+function grade(w,correct){const t=today();const c=S.cards[w.id]||{box:0,due:t,ok:0,ko:0,intro:t};
+  if(correct){c.box=Math.min(c.box+1,INTERVALS.length-1);c.ok++}else{c.box=1;c.ko++}
+  c.due=addDays(t,correct?INTERVALS[c.box]:1);c.last=t;S.cards[w.id]=c;
+  const g=S.giorni[t]||{n:0,ok:0};g.n++;if(correct)g.ok++;S.giorni[t]=g;save()}
+function streak(){let n=0,d=today();if(!S.giorni[d])d=addDays(d,-1);while(S.giorni[d]&&S.giorni[d].n>0){n++;d=addDays(d,-1)}return n}
+
+/* ---------- confronto risposte ---------- */
+function norm(s){return s.toLowerCase().normalize("NFC").replace(/[.,!?;:()"]/g," ").replace(/\s+/g," ").trim()}
+function deUmlaut(s){return s.replace(/ä/g,"ae").replace(/ö/g,"oe").replace(/ü/g,"ue").replace(/ß/g,"ss")}
+function variants(s){return s.replace(/\([^)]*\)/g," ").split(/\s*\/\s*/).map(norm).filter(Boolean)}
+function stripItArt(s){return s.replace(/^(il|lo|la|i|gli|le|l'|un|uno|una|un')\s*/,"")}
+function check(input,target,lang){const a=norm(input);if(!a)return "bad";
+  for(const v of variants(target)){
+    if(a===v)return "ok";
+    if(lang==="de"&&a.replace(/ß/g,"ss")===v.replace(/ß/g,"ss"))return "ok";
+    if(lang==="de"&&(deUmlaut(a)===deUmlaut(v)||a.replace(/ß/g,"ss")===v.replace(/ä/g,"a").replace(/ö/g,"o").replace(/ü/g,"u").replace(/ß/g,"ss")))return "quasi";
+    if(lang==="it"&&stripItArt(a)===stripItArt(v))return "ok";
+    if(lang==="de"){const m=v.match(/^(der|die|das)\s+(.+)$/);
+      if(m&&a===m[2])return "articolo";
+      if(m){const am=a.match(/^(der|die|das)\s+(.+)$/);if(am&&am[2]===m[2])return "articolo"}}
+    if(lev(a,v)===1&&v.length>4)return "quasi";
+  }return "bad"}
+function lev(a,b){if(Math.abs(a.length-b.length)>1)return 9;const d=Array.from({length:a.length+1},(_,i)=>[i]);for(let j=1;j<=b.length;j++)d[0][j]=j;
+  for(let i=1;i<=a.length;i++)for(let j=1;j<=b.length;j++)d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+(a[i-1]===b[j-1]?0:1));return d[a.length][b.length]}
+
+function deHtml(de){const m=de.match(/^(der|die|das)\s+(.+)$/i);return m?`<span class="art-${m[1].toLowerCase()}">${esc(m[1])}</span> ${esc(m[2])}`:esc(de)}
+function speak(text){try{const u=new SpeechSynthesisUtterance(text);u.lang="de-DE";u.rate=.9;speechSynthesis.cancel();speechSynthesis.speak(u)}catch(e){toast("Audio non disponibile")}}
+
+/* ---------- parsing import ---------- */
+function parseList(text){const out=[];for(let line of text.split(/\r?\n/)){line=line.trim();if(!line||line.startsWith("#"))continue;
+  const m=line.split(/\s*(?:\t|=|;|\s[–—-]\s|:)\s*/);if(m.length<2)continue;const de=m[0].trim(),it=m.slice(1).join(" / ").trim();if(de&&it)out.push([de,it])}return out}
+
+/* ---------- viste ---------- */
+function shell(inner){return `
+  <header class="top"><div><p class="label">Deutsch · Vokabeln</p><h1 style="color:var(--pen);font-weight:800">UE Gabriele e Nicolò</h1><p class="tagline">Allora? La vostra insegnante pensa che siete qua a pettinare le bambole? Fatele vedere un po’ chi siete.</p></div></header>
+  <nav class="tabs" aria-label="Sezioni">
+    <button data-go="home" ${view==="home"?'aria-current="page"':""}>Stasera</button>
+    <button data-go="progressi" ${view==="progressi"?'aria-current="page"':""}>Progressi</button>
+    <button data-go="liste" ${view==="liste"?'aria-current="page"':""}>Liste</button>
+    <button data-go="genitori" ${view==="genitori"?'aria-current="page"':""}>Genitori</button>
+  </nav>${inner}`}
+
+function vNome(){return shell(`
+  <section class="sheet pop">
+    <h2>Come ti chiami?</h2>
+    <p class="muted">Scrivi il tuo nome: lo useremo per salutarti ogni sera.</p>
+    <form id="nameform" class="row" autocomplete="off"><input type="text" id="nomeinput" class="grow" placeholder="Il tuo nome" maxlength="30"><button class="primary" type="submit">Iniziamo</button></form>
+  </section>`)}
+function vHome(){if(!S.nome)return vNome();const cur=currentList(),ci=currentIdx(),L=allLists();const cw=wordsOf(cur);
+  const studied=phaseCount(cur);const nNew=newLeftToday();
+  const nOld=sessionDone()?0:Math.min(OLD_PER_NIGHT,oldPool().length);const total=nNew+nOld;
+  const due=dueToday();const words=activeWords();const dir=S.direzione,modo=S.modo;
+  const allDone=ci===L.length-1&&chapterDone(cur);
+  const prevName=ci>0?L[ci-1].nome.split(" · ")[0]:cur.nome.split(" · ")[0];
+  return shell(`
+  <section class="sheet pop">
+    <p class="label">${esc(cur.nome)}</p>
+    <div class="bar" role="img" aria-label="${studied} di ${cw.length} parole imparate"><span style="width:${studied/cw.length*100}%;background:var(--ok)"></span></div>
+    <p class="small muted">${allDone?"Tutti i capitoli completati!":`${studied} di ${cw.length} parole imparate · poi si passa al ${esc((L[ci+1]||cur).nome.split(" · ")[0])}`}</p>
+    <p class="label">Studio di stasera</p>
+    ${total>0?`<h2>${nNew?`${nNew} parole`:""}${nNew&&nOld?" + ":""}${nOld?`${nOld} di ripasso`:""} in 6 round</h2>
+      ${wrongPending()?`<p class="small" style="color:var(--margin);font-weight:700">Si parte dalle ${Math.min(wrongPending(),nNew)} sbagliate l'ultima volta.</p>`:""}
+      <ol class="small muted rounds">${[1,2,3,4,5,6].map(i=>`<li>${esc(FASI[i].nome)}</li>`).join("")}</ol>
+      ${nOld?`<p class="small muted">Le ${nOld} di ripasso sono prese dal ${esc(prevName)}, prima quelle sbagliate più spesso.</p>`:""}`
+     :`<h2>Fatto per stasera, bravo!</h2>
+      <p class="muted">${allDone?"Hai studiato tutte le parole. Continua con i ripassi.":"Domani sera arrivano le prossime."}</p>`}
+    ${total>0?`<button class="primary big" id="start">Inizia</button>`:newWords().length?`<button class="primary big" id="more">Ne voglio fare ancora ${EXTRA_STEP}</button>`:""}
+    ${due.length?`<button class="big" id="review">Ripassa le parole da rinforzare (${due.length})</button>`:""}
+    ${words.some(w=>cardOf(w.id))?`<button class="big" id="free">Ripasso libero (10 parole già viste)</button>`:""}
+    <p class="label" style="margin-top:6px">Per i ripassi extra</p>
+    <div class="row"><span class="label">Domanda in</span></div>
+    <div class="chips" role="group" aria-label="Direzione">
+      ${[["it-de","Italiano → Tedesco"],["de-it","Tedesco → Italiano"],["mix","Misto"]].map(([k,t])=>`<button class="chip" data-dir="${k}" aria-pressed="${dir===k}">${t}</button>`).join("")}
+    </div>
+    <div class="row"><span class="label">Tipo di quiz</span></div>
+    <div class="chips" role="group" aria-label="Tipo di quiz">
+      ${[["misto","Misto"],["scelta","Scelta multipla"],["scrivi","Scrivi"],["carte","Carte"]].map(([k,t])=>`<button class="chip" data-modo="${k}" aria-pressed="${modo===k}">${t}</button>`).join("")}
+    </div>
+  </section>
+  <section class="sheet">
+    <div class="stats">
+      <div class="stat"><b>${streak()}</b><span class="small muted">sere di fila</span></div>
+      <div class="stat"><b>${learned(words)}</b><span class="small muted">parole sicure</span></div>
+      <div class="stat"><b>${words.length}</b><span class="small muted">parole in tutto</span></div>
+    </div>
+    ${boxBar(words)}
+  </section>
+  <p class="small muted">${esc(syncNote)}</p>`)}
+
+function boxBar(words){const n=words.length||1;let nuove=0,inizio=0,quasi=0,sicure=0;
+  for(const w of words){const c=cardOf(w.id);if(!c)nuove++;else if(c.box<=2)inizio++;else if(c.box<=3)quasi++;else sicure++}
+  return `<div class="bar" role="img" aria-label="${sicure} sicure, ${quasi} quasi, ${inizio} da rinforzare, ${nuove} nuove">
+    <span style="width:${sicure/n*100}%;background:var(--ok)"></span><span style="width:${quasi/n*100}%;background:var(--pen)"></span>
+    <span style="width:${inizio/n*100}%;background:var(--margin)"></span></div>
+    <div class="legend"><span><i style="background:var(--ok)"></i>Sicure ${sicure}</span><span><i style="background:var(--pen)"></i>Quasi ${quasi}</span><span><i style="background:var(--margin)"></i>Da rinforzare ${inizio}</span><span><i style="background:var(--grid)"></i>Nuove ${nuove}</span></div>`}
+
+function vProgressi(){const days=[];for(let i=13;i>=0;i--){const d=addDays(today(),-i);days.push([d,S.giorni[d]])}
+  const words=allWords();const diff=words.map(w=>[w,cardOf(w.id)]).filter(([w,c])=>c&&c.ko>0).sort((a,b)=>(b[1].ko-b[1].ok/3)-(a[1].ko-a[1].ok/3)).slice(0,10);
+  const tot=Object.values(S.giorni).reduce((a,g)=>a+g.n,0),ok=Object.values(S.giorni).reduce((a,g)=>a+g.ok,0);
+  return shell(`
+  <section class="sheet"><p class="label">Ultime due settimane</p>
+    <div class="days">${days.map(([d,g])=>`<div class="day ${g&&g.n>=10?"on":g&&g.n?"mid":""}" title="${d}: ${g?g.n:0} risposte"></div>`).join("")}</div>
+    <p class="small muted">Verde pieno: almeno 10 parole studiate quella sera.</p>
+    <div class="stats"><div class="stat"><b>${streak()}</b><span class="small muted">sere di fila</span></div>
+      <div class="stat"><b>${tot}</b><span class="small muted">risposte date</span></div>
+      <div class="stat"><b>${tot?Math.round(ok/tot*100):0}%</b><span class="small muted">giuste</span></div></div>
+  </section>
+  <section class="sheet"><p class="label">Per lista</p>
+    ${allLists().map(l=>{const ws=wordsOf(l);return `<div class="listitem"><div class="grow"><h3>${esc(l.nome)}</h3><p class="small muted">${learned(ws)} di ${ws.length} sicure</p></div></div>${boxBar(ws)}`}).join("")}
+  </section>
+  <section class="sheet"><p class="label">Parole difficili</p>
+    ${diff.length?diff.map(([w,c])=>`<div class="listitem"><div class="grow"><b>${deHtml(w.de)}</b><p class="small muted">${esc(w.it)}</p></div><span class="small muted">${c.ko} errori</span></div>`).join(""):`<p class="muted">Ancora nessun errore registrato.</p>`}
+  </section>
+  <section class="sheet"><p class="label">Copia dei progressi</p>
+    <p class="small muted">Per non perdere i progressi se cambi telefono o cancelli i dati del browser. Copia il codice e salvalo in una nota o mandalo per messaggio.</p>
+    <button id="backup">Copia il codice dei progressi</button>
+    <textarea id="restoretext" placeholder="Incolla qui un codice per ripristinare i progressi" style="min-height:90px"></textarea>
+    <button id="restore">Ripristina dal codice</button>
+  </section>
+  <section class="sheet"><p class="label">Ricomincia da zero</p>
+    <p class="small muted">Cancella tutti i progressi su questo telefono e riparte dal Kapitel 1, fase 1. Le liste di parole restano.</p>
+    ${resetAsk?`<p style="color:var(--bad);font-weight:700">Sicuro? Non si può annullare.</p>
+      <div class="two"><button id="resetno">No, annulla</button><button id="resetyes" style="border-color:var(--bad);color:var(--bad)">Sì, cancella tutto</button></div>`
+      :`<button id="reset">Azzera i progressi</button>`}
+  </section>
+  <p class="small muted">${esc(syncNote)}</p>`)}
+
+function vListe(){const ci=currentIdx();
+  return shell(`
+  <section class="sheet"><p class="label">Capitoli, in ordine</p>
+    <p class="small muted">Ogni sera le stesse parole passano da 6 round: 1 tedesco → italiano a scelta, 2 italiano → tedesco a scelta, 3 scrivi in italiano, 4 scrivi in tedesco, poi solo per i nomi 5 scrivi l'articolo e 6 scrivi il nome con l'articolo. Una parola è imparata se non la sbagli mai al primo colpo. Imparate tutte, si apre il capitolo successivo.</p>
+    ${allLists().map((l,i)=>{const ws=wordsOf(l),st=phaseCount(l);const stato=chapterDone(l)?"Completato":i===ci?"In corso":"Bloccato";
+      return `<div class="listitem"><span class="chip" style="min-height:0;padding:4px 10px;font-size:.8rem;${stato==="Completato"?"border-color:var(--ok);color:var(--ok)":stato==="In corso"?"border-color:var(--pen);color:var(--pen)":"color:var(--muted)"}">${stato}</span>
+      <div class="grow"><b>${esc(l.nome)}</b><br><span class="small muted">${stato==="Completato"?`${ws.length} parole imparate`:stato==="In corso"?`${st} di ${ws.length} parole imparate`:`${ws.length} parole`}</span></div>
+      ${BUILTIN.includes(l)?"":`<button class="ghost" data-del="${l.id}">Elimina</button>`}</div>`}).join("")}
+  </section>
+  <section class="sheet"><p class="label">Aggiungi una lista</p>
+    <input type="text" id="newname" placeholder="Nome della lista, es. Kapitel 3 · Familie">
+    <textarea id="newtext" placeholder="Una parola per riga, tedesco = italiano&#10;der Hund = il cane&#10;die Katze = il gatto&#10;laufen = correre"></textarea>
+    <p class="small muted">Separatori accettati: <code>=</code> <code>;</code> <code>:</code> tabulazione o trattino. Più traduzioni con <code>/</code>. Metti sempre l'articolo (der, die, das).</p>
+    <button class="primary" id="addlist">Aggiungi lista</button>
+  </section>`)}
+
+/* ---------- quiz ---------- */
+function startQuiz(kind){let items;
+  if(kind==="libero"){const seen=activeWords().filter(w=>cardOf(w.id));items=shuffle(seen).slice(0,10).map(w=>({w}))}
+  else if(kind==="ripasso"){items=shuffle(dueToday()).slice(0,20).map(w=>({w}))}
+  else{const nw=newWords().slice(0,newLeftToday());
+    const old=sessionDone()?[]:pickHard(oldPool(),OLD_PER_NIGHT);const batch=[...nw,...old];if(!batch.length)return;
+    const rounds=[1,2,3,4,5,6].filter(rd=>batch.some(w=>maxPh(w)>=rd));
+    Q={kind,batch,rounds,ri:0,bad:new Set(),ok:0,errs:[],cur:null,free:false,t0:Date.now(),rs:{},asked:0};startRound();return}
+  if(!items.length)return;
+  Q={queue:items.map(e=>({...e,tries:0})),done:0,total:items.length,ok:0,errs:[],cur:null,state:"ask",free:kind!=="sera",kind};nextQ()}
+function startRound(){const rd=Q.rounds[Q.ri],F=FASI[rd];
+  const items=shuffle(Q.batch.filter(w=>maxPh(w)>=rd)).map(w=>({w,mode:F.mode,dir:F.dir,phase:rd,tries:0}));
+  Q.queue=items;Q.total=items.length;Q.done=0;nextQ()}
+function finishSera(){const t=today();S.tent=Object.assign({},S.tent);S.wrong=Object.assign({},S.wrong);S.done=Object.assign({},S.done);
+  for(const w of Q.batch){S.tent[w.id]={d:t};if(Q.bad.has(w.id))S.wrong[w.id]=true;else{delete S.wrong[w.id];S.done[w.id]=S.done[w.id]||t}}
+  S.fatto=Object.assign({},S.fatto,{[t]:true});save();report()}
+/* Invio dei risultati per la dashboard dei genitori (tab Genitori).
+   Ogni famiglia sceglie un codice; il telefono del ragazzo invia con quel codice,
+   il genitore inserisce lo stesso codice e vede solo i dati della sua famiglia.
+   I dati finiscono in un Foglio Google tramite Apps Script (REPORT_URL). */
+const REPORT_URL="";
+function report(){if(!REPORT_URL||!S.invia||!S.famiglia)return;const cur=currentList(),bad=Q.batch.filter(w=>Q.bad.has(w.id));
+  const rr={};for(const k of [1,2,3,4,5,6]){const x=Q.rs[k];rr["r"+k]=x?`${x.ok}/${x.n}`:""}
+  S.outbox=[...(S.outbox||[]),{app:"vokabeln-gabri",id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),famiglia:S.famiglia,nome:S.nome||"",data:today(),capitolo:cur.nome.split(" · ")[0],
+    parole:Q.batch.length,imparate:Q.batch.length-bad.length,sbagliate:bad.length,paroleSbagliate:bad.map(w=>w.de+" = "+w.it),...rr,
+    domande:Q.asked,minuti:Math.max(1,Math.round((Date.now()-Q.t0)/60000)),imparateCapitolo:phaseCount(cur),totaleCapitolo:wordsOf(cur).length,
+    imparateTotali:Object.keys(S.done||{}).length}];save();sendOutbox()}
+async function sendOutbox(){if(!REPORT_URL||!S.invia||!(S.outbox||[]).length||sendOutbox.busy)return;sendOutbox.busy=true;
+  try{while(S.outbox.length){await fetch(REPORT_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(S.outbox[0])});S.outbox=S.outbox.slice(1);save()}}catch(e){}
+  sendOutbox.busy=false}
+function pickMode(entry){if(entry.mode)return entry.mode;const m=S.modo;const c=cardOf(entry.w.id);
+  if(m!=="misto")return m;
+  if(!c||c.box<=1)return entry.tries?"scelta":"carte";
+  return c.box<=2?"scelta":"scrivi"}
+function pickDir(){return S.direzione==="mix"?(Math.random()<.5?"it-de":"de-it"):S.direzione}
+/* Risposte sbagliate "furbe": stesso tipo di parola (nome/verbo/altro), stesso articolo,
+   stesso capitolo, lunghezza e iniziale simili. Così non si indovina per esclusione. */
+function wkind(de){const d=de.replace(/\([^)]*\)/g,"").trim();
+  if(/^(der|die|das)(\/(der|die|das))?\s/i.test(d))return "nome";
+  if(/^(ich|du|er|sie|es|wir)\s/.test(d))return "forma";
+  if(/^[a-zäöü]+(en|ern|eln)$/.test(d))return "verbo";
+  if(/^[A-ZÄÖÜ]/.test(d))return "nome";
+  return "altro"}
+const artOf=de=>((de.match(/^(der|die|das)\s/i)||[])[1]||"").toLowerCase();
+const itArt=it=>((it.match(/^(il|lo|la|l'|i|gli|le)\s?/i)||[])[1]||"").toLowerCase();
+function trickyPool(w,pool,key){const k=wkind(w.de),a=artOf(w.de),ia=itArt(w.it),ans=norm(w[key]);
+  const score=x=>{let sc=Math.random()*2;
+    if(wkind(x.de)===k)sc+=6;if(a&&artOf(x.de)===a)sc+=3;if(ia&&itArt(x.it)===ia)sc+=2;
+    if(x.lista===w.lista)sc+=2;const o=norm(x[key]);
+    if(Math.abs(o.length-ans.length)<=3)sc+=1.5;
+    if(o.replace(/^(der|die|das|il|lo|la|l'|i|gli|le)\s?/,"")[0]===ans.replace(/^(der|die|das|il|lo|la|l'|i|gli|le)\s?/,"")[0])sc+=1.5;
+    return sc};
+  return pool.map(x=>[x,score(x)]).sort((p,q)=>q[1]-p[1]).map(p=>p[0])}
+function nextQ(){if(!Q.queue.length){
+    if(Q.kind==="sera"&&Q.ri<Q.rounds.length-1){Q.ri++;view="round";render();return}
+    if(Q.kind==="sera")finishSera();view="fine";render();return}
+  const e=Q.queue.shift();Q.cur={...e,mode:pickMode(e),dir:e.dir||pickDir(),answer:"",result:null,flipped:false};
+  if(Q.cur.mode==="scelta"){const pool=allWords().filter(x=>x.id!==e.w.id);const key=Q.cur.dir==="it-de"?"de":"it";
+    const pkey=key==="de"?"it":"de";const pn=variants(e.w[pkey]).join("|");
+    const seen=new Set([e.w[key]]);for(const x of pool)if(variants(x[pkey]).join("|")===pn)seen.add(x[key]);const opts=[e.w];for(const x of trickyPool(e.w,pool,key)){if(opts.length>=5)break;if(!seen.has(x[key])){seen.add(x[key]);opts.push(x)}}
+    Q.cur.opts=shuffle(opts)}
+  view="quiz";render()}
+function answer(correct,extra){const c=Q.cur;c.result=correct?"ok":"bad";c.extra=extra||"";
+  if(Q.rs)Q.asked++;
+  if(c.tries===0){grade(c.w,correct);if(correct)Q.ok++;else{Q.errs.push(c.w);if(Q.bad)Q.bad.add(c.w.id)}
+    if(Q.rs&&c.phase){const x=Q.rs[c.phase]||(Q.rs[c.phase]={n:0,ok:0});x.n++;if(correct)x.ok++}}
+  else if(!correct&&S.cards[c.w.id]){S.cards[c.w.id].ko++;save()}
+  if(!correct)Q.queue.splice(Math.min(Q.queue.length,3),0,{w:c.w,mode:c.mode,dir:c.dir,phase:c.phase,tries:c.tries+1});else Q.done++;
+  render()}
+
+function vQuiz(){const c=Q.cur,w=c.w;const askDe=c.dir==="de-it";const art=c.mode==="articolo";const prompt=art?w.de.replace(/^(der|die|das)\s+/i,""):askDe?w.de:w.it;const target=askDe?w.it:w.de;
+  const pct=Q.done/Q.total*100;
+  let body="";
+  if(c.mode==="carte"){
+    body=`<div class="flip" id="flip" role="button" tabindex="0" aria-label="Gira la carta">
+      ${c.flipped?`<p class="label">Risposta</p><p class="word">${askDe?esc(w.it):deHtml(w.de)}</p>`:`<p class="muted">Pensa alla risposta, poi tocca qui per girare la carta.</p>`}</div>
+      ${c.flipped&&!c.result?`<div class="two"><button id="no" style="border-color:var(--bad);color:var(--bad)">Non lo sapevo</button><button id="si" style="border-color:var(--ok);color:var(--ok)">Lo sapevo</button></div>`:""}`;
+  }else if(c.mode==="scelta"){
+    const key=askDe?"it":"de";
+    body=`<div class="opts">${c.opts.map((o,i)=>{let cls="";if(c.result){if(o.id===w.id)cls="ok";else if(c.picked===i)cls="bad"}else if(c.picked===i)cls="sel";
+      return `<button class="opt ${cls}" data-opt="${i}" aria-pressed="${c.picked===i}" ${c.result?"disabled":""}>${key==="de"?deHtml(o.de):esc(o.it)}</button>`}).join("")}</div>
+      ${c.result?"":`<button class="primary big" id="confirm" ${c.picked==null?"disabled":""}>Avanti</button>`}`;
+  }else{
+    body=`<form id="typeform" class="row" autocomplete="off"><input type="text" id="typed" class="grow" placeholder="${art?"der, die o das?":askDe?"Scrivi in italiano":"Scrivi in tedesco, con l'articolo"}" value="${esc(c.answer)}" ${c.result?"disabled":""} autocapitalize="off" spellcheck="false" lang="${askDe&&!art?"it":"de"}">
+      ${c.result?"":`<button class="primary" type="submit">Controlla</button>`}</form>
+      ${!askDe&&!c.result?`<div class="chips">${["ä","ö","ü","ß"].map(k=>`<button class="chip" data-key="${k}" type="button">${k}</button>`).join("")}<button class="chip" id="dunno" type="button">Non lo so</button></div>`:""}`;
+  }
+  let fb="";
+  if(c.result){const msgs={ok:["Giusto!","Richtig!","Super!","Perfetto!"],bad:["Non ancora","Quasi, riprova più tardi"]};
+    const m=c.result==="ok"?msgs.ok[Math.random()*msgs.ok.length|0]:"Non ancora: la ritrovi tra poco.";
+    fb=`<div class="feedback ${c.result} pop"><span>${c.extra||m}</span><span class="ans">${deHtml(w.de)} = ${esc(w.it)}</span></div>
+      <button class="primary big" id="next">${Q.queue.length?"Avanti":"Fine"}</button>`}
+  return `
+  <div class="progress"><button class="ghost" id="quit" aria-label="Esci dal quiz">✕ Esci</button><div class="bar"><span style="width:${pct}%;background:var(--ok)"></span></div><span class="small muted" style="font-variant-numeric:tabular-nums">${Q.rounds?`R${Q.ri+1}/${Q.rounds.length} · `:""}${Q.done}/${Q.total}</span></div>
+  <section class="sheet pop">
+    <div class="prompt"><p class="label">${art?"Qual è l'articolo?":askDe?"Cosa vuol dire?":"Come si dice in tedesco?"}</p>
+      <p class="word">${art?`<span class="muted">___</span> ${esc(prompt)}`:askDe?deHtml(prompt):esc(prompt)}</p>
+      ${art?`<p class="muted">${esc(w.it)}</p>`:""}
+      ${askDe||c.result||c.flipped?`<button class="say" id="say" type="button">Ascolta</button>`:""}</div>
+    ${body}${fb}
+  </section>`}
+
+function vRound(){const rd=Q.rounds[Q.ri],F=FASI[rd];const n=Q.batch.filter(w=>maxPh(w)>=rd).length;
+  return `
+  <section class="sheet pop">
+    <p class="label">Round ${Q.ri} di ${Q.rounds.length} finito${Q.bad.size?"":" senza errori"}!</p>
+    <h2>Round ${Q.ri+1} · ${esc(F.nome)}</h2>
+    <p class="muted">${n} parole${rd>=5?", solo i nomi":", le stesse di prima"}.</p>
+    <div class="phases" aria-hidden="true">${Q.rounds.map((x,i)=>`<span class="${i<Q.ri?"done":i===Q.ri?"now":""}"></span>`).join("")}</div>
+    <button class="primary big" id="nextround">Inizia il round ${Q.ri+1}</button>
+  </section>`}
+function vFine(){if(Q.kind==="sera")return vFineSera();const t=Q.total,ok=Q.ok;const pct=t?Math.round(ok/t*100):0;
+  const errs=[...new Map(Q.errs.map(w=>[w.id,w])).values()];
+  return `
+  <section class="sheet pop" style="text-align:left">
+    <p class="confetti">${pct>=80?"Toll!":pct>=50?"Gut gemacht!":"Weiter so!"}</p>
+    <h2>${ok} su ${t} giuste al primo colpo</h2>
+    <p class="muted">${Q.kind==="sera"?"Studio di stasera completato!":"Ripasso completato."} Sei a ${streak()} ${streak()===1?"sera":"sere"} di fila.</p>
+    ${errs.length?`<p class="label">Da ripassare</p>${errs.map(w=>`<div class="listitem"><div class="grow"><b>${deHtml(w.de)}</b><p class="small muted">${esc(w.it)}</p></div></div>`).join("")}`:""}
+    ${Q.kind==="sera"&&newWords().length?`<h3>Ne vuoi ancora o andiamo a domani sera?</h3>
+      <div class="two"><button class="primary" id="more">Sì, altre ${EXTRA_STEP}</button><button id="home">A domani sera</button></div>`
+      :`<button class="primary big" id="home">Torna alla pagina iniziale</button>`}
+  </section>`}
+
+/* ---------- tab Genitori: codice famiglia, invio, dashboard ---------- */
+let G=null; // {rows,err,at}
+async function loadDash(){if(!REPORT_URL||!S.famiglia)return;G={rows:G&&G.rows||null,loading:true};if(view==="genitori")render();
+  try{const r=await fetch(REPORT_URL+"?famiglia="+encodeURIComponent(S.famiglia)+"&t="+Date.now());const j=await r.json();G={rows:(j.rows||[]).filter(x=>x.data),at:new Date()}}
+  catch(e){G={rows:G&&G.rows,err:true}}
+  if(view==="genitori")render()}
+function vGenitori(){
+  if(!REPORT_URL)return shell(`<section class="sheet"><h2>Dashboard dei genitori</h2><p class="muted">Il collegamento ai dati non è ancora attivo.</p></section>`);
+  if(!S.famiglia)return shell(`
+  <section class="sheet pop"><h2>Dashboard dei genitori</h2>
+    <p class="muted">Scegli un codice famiglia, per esempio una parola che conoscete solo voi. Mettilo sia sul telefono del ragazzo sia sul tuo: vedrai solo i risultati della tua famiglia.</p>
+    <form id="famform" class="row" autocomplete="off"><input type="text" id="faminput" class="grow" placeholder="Codice famiglia" autocapitalize="off"><button class="primary" type="submit">Salva</button></form>
+  </section>`);
+  return shell(`
+  <section class="sheet">
+    <div class="row"><p class="label grow">Codice famiglia: <b style="color:var(--ink);text-transform:none;letter-spacing:0">${esc(S.famiglia)}</b></p><button class="ghost" id="famchange">Cambia</button></div>
+    <p class="label">Questo è il telefono del ragazzo?</p>
+    <button id="invia" class="${S.invia?"":"primary"}">${S.invia?"✓ Invia i risultati di ogni sera · tocca per disattivare":"Sì, invia i risultati di ogni sera"}</button>
+    <p class="small muted">${S.invia?"Ogni volta che finisce lo studio della sera, i risultati arrivano alla dashboard.":"Attivalo solo sul telefono di chi studia. Sul telefono del genitore non serve."}${(S.outbox||[]).length?` · ${S.outbox.length} in attesa di connessione`:""}</p>
+  </section>
+  ${dashHTML()}`)}
+function dashHTML(){
+  if(!G||(!G.rows&&G.loading))return `<section class="sheet"><p class="muted">Caricamento dei dati…</p></section>`;
+  if(!G.rows)return `<section class="sheet"><p class="muted">Non riesco a leggere i dati. Controlla la connessione.</p><button id="dashreload">Riprova</button></section>`;
+  const rows=G.rows.slice().sort((a,b)=>String(a.data).localeCompare(String(b.data))||String(a.id).localeCompare(String(b.id)));
+  const head=`<div class="row"><p class="small muted grow">${G.loading?"Aggiornamento…":G.err?"Dati non aggiornati: controlla la connessione.":"Aggiornato alle "+G.at.toLocaleTimeString("it-IT",{hour:"2-digit",minute:"2-digit"})}</p><button class="ghost" id="dashreload">Aggiorna</button></div>`;
+  if(!rows.length)return `<section class="sheet">${head}<h2>Ancora nessuna sera registrata</h2><p class="muted">Appena il ragazzo finisce il primo studio della sera con l'invio attivo, qui compaiono parole imparate, errori e risultati di ogni round.</p></section>`;
+  const n=v=>Number(v)||0,fmt=d=>{const [y,m,g]=String(d).split("-");return `${+g}/${+m}`};
+  const names=[...new Set(rows.map(r=>r.nome).filter(Boolean))];const last=rows[rows.length-1];
+  const byDay={};for(const r of rows){const d=byDay[r.data]||(byDay[r.data]={imp:0,sba:0,min:0});d.imp+=n(r.imparate);d.sba+=n(r.sbagliate);d.min+=n(r.minuti)}
+  let streak=0,d=today();if(!byDay[d])d=addDays(d,-1);while(byDay[d]){streak++;d=addDays(d,-1)}
+  const days=[];for(let i=13;i>=0;i--){const k=addDays(today(),-i);days.push([k,byDay[k]||null])}G.days=days;
+  const week=rows.filter(r=>r.data>=addDays(today(),-6));const wImp=week.reduce((a,r)=>a+n(r.imparate),0),wTot=week.reduce((a,r)=>a+n(r.parole),0);
+  const capP=n(last.imparate_capitolo),capT=n(last.totale_capitolo)||1;
+  const cnt={};for(const r of rows)for(const w of String(r.parole_sbagliate||"").split(";").map(x=>x.trim()).filter(Boolean))cnt[w]=(cnt[w]||0)+1;
+  const errs=Object.entries(cnt).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const RN=["Ted → ita, scelta","Ita → ted, scelta","Scrivi in italiano","Scrivi in tedesco","Articolo","Articolo + nome"];
+  const rAvg=[1,2,3,4,5,6].map(k=>{let a=0,b=0;for(const r of week){const [x,y]=String(r["r"+k]||"").split("/").map(Number);if(y){a+=x;b+=y}}return b?a+"/"+b:""});
+  const pill=v=>{const [a,b]=String(v||"").split("/").map(Number);if(!b)return `<span class="muted">–</span>`;const p=a/b;return `<span class="db-pill ${p>=.9?"ok":p>=.7?"mid":"bad"}">${a}/${b}</span>`};
+  return `
+  <section class="sheet">${head}
+    <h2>${names.length?"Come va "+esc(names.join(", ")):"Come va"}</h2>
+    <div class="db-tiles">
+      <div class="db-tile"><p class="label">Sere di fila</p><b>${streak}</b><p class="small muted">${Object.keys(byDay).length} sere in tutto</p></div>
+      <div class="db-tile"><p class="label">Parole imparate</p><b>${n(last.imparate_totali)}</b><p class="small muted">dall'inizio</p></div>
+      <div class="db-tile"><p class="label">Ultimi 7 giorni</p><b>${wImp}</b><p class="small muted">imparate su ${wTot} studiate</p></div>
+      <div class="db-tile"><p class="label">${esc(last.capitolo)}</p><b>${capP}<span class="muted" style="font-size:1rem"> / ${capT}</span></b><div class="bar"><span style="width:${capP/capT*100}%;background:var(--ok)"></span></div></div>
+    </div>
+  </section>
+  <section class="sheet">
+    <h3>Parole per sera</h3>
+    <p class="small muted">Ultime due settimane. Imparate: senza errori in nessun round. Da rifare: tornano la sera dopo.</p>
+    <div class="legend"><span><i style="background:var(--ok)"></i>Imparate</span><span><i style="background:var(--bad)"></i>Da rifare</span></div>
+    <div class="db-chart" id="dbchart">${dashChart(days)}<div class="db-tip" id="dbtip" hidden></div></div>
+  </section>
+  <section class="sheet">
+    <h3>Risultati per round</h3>
+    <p class="small muted">Giuste al primo colpo. Verde da 90%, blu da 70%, rosso sotto.</p>
+    <div class="db-scroll"><table class="db-table">
+      <thead><tr><th>Sera</th><th>Parole</th><th>Imparate</th>${RN.map((x,i)=>`<th class="r" title="${x}">R${i+1}</th>`).join("")}<th>Min</th></tr></thead>
+      <tbody>${rows.slice().reverse().slice(0,30).map(r=>`<tr><td>${fmt(r.data)} <span class="muted small">${esc(String(r.capitolo).replace("Kapitel ","K"))}</span></td><td>${n(r.parole)}</td><td>${n(r.imparate)}</td>${[1,2,3,4,5,6].map(k=>`<td class="r">${pill(r["r"+k])}</td>`).join("")}<td>${n(r.minuti)}</td></tr>`).join("")}</tbody>
+      <tfoot><tr><th colspan="3">Media 7 giorni</th>${rAvg.map(v=>`<td class="r">${pill(v)}</td>`).join("")}<td></td></tr></tfoot>
+    </table></div>
+    <p class="small muted">${RN.map((x,i)=>`R${i+1} ${x}`).join(" · ")}</p>
+  </section>
+  <section class="sheet">
+    <h3>Parole sbagliate più spesso</h3>
+    ${errs.length?errs.map(([w,c])=>`<div class="listitem"><div class="grow" style="min-width:0;overflow-wrap:anywhere">${esc(w)}</div><span class="small muted">${c} ${c===1?"volta":"volte"}</span></div>`).join(""):`<p class="muted">Nessun errore finora.</p>`}
+  </section>`}
+function dashChart(days){const W=520,H=200,L=30,B=26,T=8,R=6;const max=Math.max(5,...days.map(([,d])=>d?d.imp+d.sba:0));
+  const step=Math.ceil(max/4/5)*5||5,top=step*4;const y=v=>T+(H-T-B)*(1-v/top);const bw=(W-L-R)/days.length;const w=Math.min(22,bw-6);
+  const fmt=d=>{const [a,m,g]=d.split("-");return `${+g}/${+m}`};let g="";
+  for(let i=0;i<=4;i++){const v=i*step;g+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--grid)" stroke-width="1"/><text x="${L-5}" y="${y(v)+4}" text-anchor="end" font-size="10" fill="var(--muted)">${v}</text>`}
+  days.forEach(([k,d],i)=>{const x=L+i*bw+(bw-w)/2;
+    if(i%2===days.length%2||days.length<=7)g+=`<text x="${x+w/2}" y="${H-8}" text-anchor="middle" font-size="10" fill="var(--muted)">${fmt(k)}</text>`;
+    if(d){const yb=y(0),h1=(H-T-B)*d.imp/top,h2=(H-T-B)*d.sba/top;
+      if(d.imp)g+=`<rect x="${x}" y="${yb-h1}" width="${w}" height="${h1}" rx="3" fill="var(--ok)"/>`;
+      if(d.sba)g+=`<rect x="${x}" y="${yb-h1-h2-(d.imp?2:0)}" width="${w}" height="${h2}" rx="3" fill="var(--bad)"/>`}
+    g+=`<rect x="${L+i*bw}" y="${T}" width="${bw}" height="${H-T-B}" fill="transparent" data-i="${i}"/>`});
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Parole imparate e da rifare per sera, ultime due settimane">${g}</svg>`}
+function hookTip(){const svg=$("#dbchart svg"),tip=$("#dbtip");if(!svg||!G||!G.days)return;
+  const show=e=>{const t=e.target.closest("[data-i]");if(!t){tip.hidden=true;return}const [k,d]=G.days[+t.dataset.i];const [a,m,g]=k.split("-");
+    const box=$("#dbchart").getBoundingClientRect();tip.style.left=Math.min(Math.max(e.clientX-box.left,70),box.width-70)+"px";tip.style.top=(e.clientY-box.top)+"px";
+    tip.textContent=d?`${+g}/${+m}: ${d.imp} imparate, ${d.sba} da rifare, ${d.min} min`:`${+g}/${+m}: niente studio`;tip.hidden=false};
+  svg.addEventListener("pointermove",show);svg.addEventListener("pointerdown",show);svg.addEventListener("pointerleave",()=>tip.hidden=true)}
+
+function vFineSera(){const n=Q.batch.length,bad=Q.batch.filter(w=>Q.bad.has(w.id));const good=n-bad.length;
+  return `
+  <section class="sheet pop" style="text-align:left">
+    <p class="confetti">${!bad.length?"Toll!":good>=n/2?"Gut gemacht!":"Weiter so!"}</p>
+    <h2>${good} su ${n} parole imparate</h2>
+    <p class="muted">${bad.length?`Le ${bad.length} sbagliate tornano per prime domani sera.`:"Nessun errore in tutti i round!"} Sei a ${streak()} ${streak()===1?"sera":"sere"} di fila.</p>
+    ${bad.length?`<p class="label">Da rifare domani</p>${bad.map(w=>`<div class="listitem"><div class="grow"><b>${deHtml(w.de)}</b><p class="small muted">${esc(w.it)}</p></div></div>`).join("")}`:""}
+    ${newWords().length?`<h3>Ne vuoi ancora o andiamo a domani sera?</h3>
+      <div class="two"><button class="primary" id="more">Sì, altre ${EXTRA_STEP}</button><button id="home">A domani sera</button></div>`
+      :`<button class="primary big" id="home">Torna alla pagina iniziale</button>`}
+  </section>`}
+
+function render(){const app=$("#app");
+  app.innerHTML=view==="quiz"?vQuiz():view==="round"?vRound():view==="fine"?vFine():view==="progressi"?vProgressi():view==="liste"?vListe():view==="genitori"?vGenitori():vHome();
+  if(view==="quiz"){const inp=$("#typed");if(inp&&!inp.disabled)inp.focus();else{const n=$("#next");if(n)n.focus()}}
+  if(view==="genitori")hookTip();
+  window.scrollTo(0,0)}
+
+/* ---------- eventi ---------- */
+document.addEventListener("click",e=>{const t=e.target.closest("button,#flip");if(!t)return;
+  if(t.dataset.go){view=t.dataset.go;resetAsk=false;render();if(view==="genitori"&&!G)loadDash();return}
+  if(t.id==="reset"){resetAsk=true;render();return}
+  if(t.id==="invia"){S.invia=!S.invia;save();render();if(S.invia){toast("Invio attivato: i risultati arrivano alla dashboard");sendOutbox()}return}
+  if(t.id==="famchange"){S.famiglia="";S.invia=false;G=null;save();render();return}
+  if(t.id==="dashreload"){loadDash();return}
+  if(t.id==="resetno"){resetAsk=false;render();return}
+  if(t.id==="resetyes"){const keep={liste:S.liste,direzione:S.direzione,modo:S.modo,nome:S.nome,invia:S.invia,famiglia:S.famiglia};S=Object.assign(blank(),keep);resetAsk=false;save();view="home";render();toast("Progressi azzerati: si riparte dal Kapitel 1");return}
+  if(t.dataset.dir){S.direzione=t.dataset.dir;save();render();return}
+  if(t.dataset.modo){S.modo=t.dataset.modo;save();render();return}
+  if(t.id==="start"){startQuiz("sera");return}
+  if(t.id==="review"){startQuiz("ripasso");return}
+  if(t.id==="more"){S.extra=Object.assign({},S.extra,{[today()]:Math.max(extraToday(),attemptedToday()+EXTRA_STEP-(newPerNight()-extraToday()))});save();startQuiz("sera");return}
+  if(t.id==="backup"){const code="VOK1:"+btoa(unescape(encodeURIComponent(JSON.stringify(S))));
+    const fallback=()=>{const ta=$("#restoretext");ta.value=code;ta.select();toast("Codice selezionato: copialo")};
+    try{navigator.clipboard.writeText(code).then(()=>toast("Codice copiato"),fallback)}catch(e){fallback()}return}
+  if(t.id==="restore"){const v=$("#restoretext").value.trim();
+    try{if(!v.startsWith("VOK1:"))throw 0;const o=JSON.parse(decodeURIComponent(escape(atob(v.slice(5)))));if(!o||typeof o.cards!=="object")throw 0;
+      S=Object.assign(blank(),o);save();render();toast("Progressi ripristinati")}catch(e){toast("Codice non valido: incollalo intero, a partire da VOK1:")}return}
+  if(t.id==="free"){startQuiz("libero");return}
+  if(t.id==="home"){view="home";render();return}
+  if(t.id==="quit"){view="home";Q=null;render();return}
+  if(t.id==="next"){nextQ();return}
+  if(t.id==="nextround"){startRound();return}
+  if(t.id==="say"){speak(Q.cur.w.de);return}
+  if(t.id==="flip"){if(!Q.cur.flipped){Q.cur.flipped=true;if(Q.cur.dir==="it-de")speak(Q.cur.w.de);render()}return}
+  if(t.id==="si"){answer(true);return}
+  if(t.id==="no"){answer(false);return}
+  if(t.id==="dunno"){Q.cur.answer="";answer(false);return}
+  if(t.dataset.key){const i=$("#typed");const p=i.selectionStart??i.value.length;i.value=i.value.slice(0,p)+t.dataset.key+i.value.slice(i.selectionEnd??p);Q.cur.answer=i.value;i.focus();i.setSelectionRange(p+1,p+1);return}
+  if(t.dataset.opt!==undefined){if(Q.cur.result)return;Q.cur.picked=+t.dataset.opt;const y=window.scrollY;render();window.scrollTo(0,y);return}
+  if(t.id==="confirm"){if(Q.cur.picked==null||Q.cur.result)return;answer(Q.cur.opts[Q.cur.picked].id===Q.cur.w.id);return}
+  if(t.dataset.del){S.liste=S.liste.filter(l=>l.id!==t.dataset.del);save();render();toast("Lista eliminata");return}
+  if(t.id==="addlist"){const name=$("#newname").value.trim()||"Lista "+((S.liste||[]).length+1);const parole=parseList($("#newtext").value);
+    if(!parole.length){toast("Nessuna parola trovata: scrivi tedesco = italiano, una per riga");return}
+    const id="u-"+Date.now().toString(36);S.liste=[...(S.liste||[]),{id,nome:name,parole}];save();render();toast(`Aggiunte ${parole.length} parole`);return}
+});
+document.addEventListener("input",e=>{if(e.target.id==="typed"&&Q&&Q.cur)Q.cur.answer=e.target.value});
+document.addEventListener("submit",e=>{if(e.target.id==="famform"){e.preventDefault();const v=$("#faminput").value.trim().toLowerCase();if(v.length<4){toast("Il codice deve avere almeno 4 caratteri");return}S.famiglia=v;save();G=null;render();loadDash();return}
+  if(e.target.id==="nameform"){e.preventDefault();const v=$("#nomeinput").value.trim();if(v){S.nome=v.slice(0,30);save();render()}return}
+  if(e.target.id!=="typeform")return;e.preventDefault();const c=Q.cur;if(c.result)return;
+  if(c.mode==="articolo"){const a=norm(c.answer).split(" ")[0];if(!a){answer(false);return}answer(a===artOf(c.w.de));return}
+  const askDe=c.dir==="de-it";const pk=askDe?"de":"it",tk=askDe?"it":"de";const pn=variants(c.w[pk]).join("|");
+  const targets=[c.w[tk],...allWords().filter(x=>x.id!==c.w.id&&variants(x[pk]).join("|")===pn).map(x=>x[tk])];
+  const rank={ok:3,quasi:2,articolo:1,bad:0};let r="bad";for(const t of targets){const x=check(c.answer,t,askDe?"it":"de");if(rank[x]>rank[r])r=x}
+  if(r==="ok")answer(true);
+  else if(r==="quasi")answer(true,"Giusto! Attenzione solo a come si scrive:");
+  else if(r==="articolo")answer(false,"Parola giusta, ma l'articolo è sbagliato o manca:");
+  else answer(false)});
+document.addEventListener("keydown",e=>{if(view!=="quiz"||!Q||!Q.cur)return;
+  if(e.key==="Enter"&&Q.cur.result&&e.target.id!=="typed"){e.preventDefault();nextQ()}
+  if(Q.cur.mode==="carte"&&!Q.cur.result&&(e.key===" "||e.key==="Enter")&&!Q.cur.flipped){e.preventDefault();Q.cur.flipped=true;render()}});
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden")flush()});
+
+render();connect();sendOutbox();
+/* Tira giù per aggiornare (nell'app installata non c'è il refresh del browser) */
+(()=>{let y0=null,pulled=0;const tip=document.createElement("div");
+  tip.style.cssText="position:fixed;left:50%;top:calc(env(safe-area-inset-top) + 8px);transform:translateX(-50%);background:var(--ink);color:var(--paper);font:700 .85rem var(--body);padding:6px 12px;border-radius:99px;z-index:99;opacity:0;transition:opacity .15s;pointer-events:none";
+  document.body.appendChild(tip);
+  addEventListener("touchstart",e=>{y0=(scrollY<=0&&view!=="quiz")?e.touches[0].clientY:null;pulled=0},{passive:true});
+  addEventListener("touchmove",e=>{if(y0===null)return;pulled=e.touches[0].clientY-y0;if(pulled>20){tip.style.opacity=1;tip.textContent=pulled>110?"Lascia per aggiornare":"Tira giù per aggiornare"}},{passive:true});
+  addEventListener("touchend",()=>{tip.style.opacity=0;if(y0!==null&&pulled>110){tip.textContent="Aggiorno…";tip.style.opacity=1;
+    (navigator.serviceWorker&&navigator.serviceWorker.getRegistration?navigator.serviceWorker.getRegistration().then(r=>r&&r.update()).catch(()=>{}):Promise.resolve()).finally(()=>location.reload())}y0=null});
+})();
+</script>
+
+</body>
+</html>
