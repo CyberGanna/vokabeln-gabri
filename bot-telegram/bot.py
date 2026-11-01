@@ -49,7 +49,11 @@ vocabolario = Vocabolario(os.environ.get("DB_PATH", "vocabolario.db"))
 
 
 def autorizzato(update: Update) -> bool:
-    return not AUTORIZZATI or (update.effective_user and update.effective_user.id in AUTORIZZATI)
+    ok = not AUTORIZZATI or (update.effective_user and update.effective_user.id in AUTORIZZATI)
+    if not ok:
+        u = update.effective_user
+        log.warning("Messaggio ignorato da un utente non autorizzato: id %s (%s)", u and u.id, u and u.full_name)
+    return ok
 
 
 def applica_filtro(parole: list[dict]) -> tuple[list[dict], int]:
