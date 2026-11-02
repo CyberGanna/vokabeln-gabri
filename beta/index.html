@@ -340,8 +340,8 @@ function vHome(){if(!S.nome)return vNome();const cur=currentList(),ci=currentIdx
       <p class="small muted">Ogni parola fa prima il round 1; quando lo indovina, una sera dopo fa il round 2. È imparata quando li ha giusti tutti e due.</p><ol class="small muted rounds">${[1,2].map(i=>`<li>${esc(FASI[i].nome)}</li>`).join("")}</ol>
       ${nOld?`<p class="small muted">Le ${nOld} di ripasso sono prese dal ${esc(prevName)}, prima quelle sbagliate più spesso.</p>`:""}`
      :`<h2>Fatto per stasera, bravo!</h2>
-      <p class="muted">${allDone?"Hai studiato tutte le parole. Continua con i ripassi.":"Domani sera arrivano le prossime."}</p>`}
-    ${total>0?`<button class="primary big" id="start">Inizia</button>`:newWords().length?`<button class="primary big" id="more">Ne voglio fare ancora ${EXTRA_STEP}</button>`:""}
+      <p class="muted">${allDone?"Hai studiato tutte le parole. Continua con i ripassi.":"Le prossime arrivano domani sera, oppure adesso con un’altra lezione."}</p>`}
+    ${total>0?`<button class="primary big" id="start">Inizia</button>`:newWords().length?`<button class="primary big" data-more="${PER_NIGHT}">Un'altra lezione (${PER_NIGHT} parole)</button><button class="big" data-more="${EXTRA_STEP}">Solo altre ${EXTRA_STEP} parole</button>`:""}
     ${due.length?`<button class="big" id="review">Ripassa le parole da rinforzare (${due.length})</button>`:""}
     <p class="label" style="margin-top:6px">Flash card 🇮🇹 → 🇩🇪</p>
     <div class="two"><button id="flash">Capitolo<br><span class="small muted">20 carte</span></button><button id="flashimp" ${imparateTutte().length?"":"disabled"}>Le mie parole imparate<br><span class="small muted">${imparateTutte().length?`${Math.min(20,imparateTutte().length)} carte su ${imparateTutte().length}`:"ancora nessuna"}</span></button></div>
@@ -571,7 +571,7 @@ function vFine(){if(Q.kind==="sera")return vFineSera();const t=Q.total,ok=Q.ok;c
     <p class="muted">${Q.kind==="sera"?"Studio di stasera completato!":"Ripasso completato."} Sei a ${streak()} ${streak()===1?"sera":"sere"} di fila.</p>
     ${errs.length?`<p class="label">Da ripassare</p>${errs.map(w=>`<div class="listitem"><div class="grow"><b>${deHtml(w.de)}</b><p class="small muted">${esc(w.it)}</p></div></div>`).join("")}`:""}
     ${Q.kind==="sera"&&newWords().length?`<h3>Ne vuoi ancora o andiamo a domani sera?</h3>
-      <div class="two"><button class="primary" id="more">Sì, altre ${EXTRA_STEP}</button><button id="home">A domani sera</button></div>`
+      <button class="primary big" data-more="${PER_NIGHT}">Un'altra lezione (${PER_NIGHT} parole)</button><div class="two"><button data-more="${EXTRA_STEP}">Solo altre ${EXTRA_STEP}</button><button id="home">A domani sera</button></div>`
       :`<button class="primary big" id="home">Torna alla pagina iniziale</button>`}
   </section>`}
 
@@ -691,7 +691,7 @@ function vFineSera(){const n=Q.batch.length,bad=Q.batch.filter(w=>Q.bad.has(w.id
     <p class="muted">${bad.length?`Le ${bad.length} sbagliate tornano per prime domani sera.`:"Nessun errore in tutti i round!"} Sei a ${streak()} ${streak()===1?"sera":"sere"} di fila.</p>
     ${bad.length?`<p class="label">Da rifare domani</p>${bad.map(w=>`<div class="listitem"><div class="grow"><b>${deHtml(w.de)}</b><p class="small muted">${esc(w.it)}</p></div></div>`).join("")}`:""}
     ${newWords().length?`<h3>Ne vuoi ancora o andiamo a domani sera?</h3>
-      <div class="two"><button class="primary" id="more">Sì, altre ${EXTRA_STEP}</button><button id="home">A domani sera</button></div>`
+      <button class="primary big" data-more="${PER_NIGHT}">Un'altra lezione (${PER_NIGHT} parole)</button><div class="two"><button data-more="${EXTRA_STEP}">Solo altre ${EXTRA_STEP}</button><button id="home">A domani sera</button></div>`
       :`<button class="primary big" id="home">Torna alla pagina iniziale</button>`}
   </section>`}
 
@@ -714,7 +714,7 @@ document.addEventListener("click",e=>{const t=e.target.closest("button,#flip");i
   if(t.dataset.modo){S.modo=t.dataset.modo;save();render();return}
   if(t.id==="start"){startQuiz("sera");return}
   if(t.id==="review"){startQuiz("ripasso");return}
-  if(t.id==="more"){S.extra=Object.assign({},S.extra,{[today()]:Math.max(extraToday(),attemptedToday()+EXTRA_STEP-(newPerNight()-extraToday()))});save();startQuiz("sera");return}
+  if(t.dataset.more){const n=+t.dataset.more;S.extra=Object.assign({},S.extra,{[today()]:Math.max(extraToday(),attemptedToday()+n-(newPerNight()-extraToday()))});save();startQuiz("sera");return}
   if(t.id==="backup"){const code="VOK1:"+btoa(unescape(encodeURIComponent(JSON.stringify(S))));
     const fallback=()=>{const ta=$("#restoretext");ta.value=code;ta.select();toast("Codice selezionato: copialo")};
     try{navigator.clipboard.writeText(code).then(()=>toast("Codice copiato"),fallback)}catch(e){fallback()}return}
