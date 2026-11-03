@@ -300,7 +300,13 @@ function lev(a,b){if(Math.abs(a.length-b.length)>1)return 9;const d=Array.from({
   for(let i=1;i<=a.length;i++)for(let j=1;j<=b.length;j++)d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+(a[i-1]===b[j-1]?0:1));return d[a.length][b.length]}
 
 function deHtml(de){const m=de.match(/^(der|die|das)\s+(.+)$/i);return m?`<span class="art-${m[1].toLowerCase()}">${esc(m[1])}</span> ${esc(m[2])}`:esc(de)}
-function speak(text){try{const u=new SpeechSynthesisUtterance(text);u.lang="de-DE";u.rate=.9;speechSynthesis.cancel();speechSynthesis.speak(u)}catch(e){toast("Audio non disponibile")}}
+/* Voce tedesca: senza scegliere una voce, iPhone e Chrome usano spesso quella inglese. Preferisce de-DE, poi de-CH/de-AT. */
+let deVoice=null;
+function pickDeVoice(){try{const vs=speechSynthesis.getVoices()||[];const de=vs.filter(v=>/^de([-_]|$)/i.test(v.lang));
+  const score=v=>(/^de[-_]DE$/i.test(v.lang)?10:0)+(/anna|helena|markus|petra|yannick|google deutsch/i.test(v.name)?5:0)+(/premium|enhanced|natural|neural/i.test(v.name)?3:0)+(v.localService?1:0);
+  deVoice=de.sort((a,b)=>score(b)-score(a))[0]||null}catch(e){}}
+try{pickDeVoice();speechSynthesis.addEventListener&&speechSynthesis.addEventListener("voiceschanged",pickDeVoice)}catch(e){}
+function speak(text){try{if(!deVoice)pickDeVoice();text=String(text).replace(/\([^)]*\)/g," ").split(" / ")[0].trim();const u=new SpeechSynthesisUtterance(text);u.lang="de-DE";if(deVoice)u.voice=deVoice;u.rate=.9;speechSynthesis.cancel();speechSynthesis.speak(u)}catch(e){toast("Audio non disponibile")}}
 
 /* ---------- parsing import ---------- */
 function parseList(text){const out=[];for(let line of text.split(/\r?\n/)){line=line.trim();if(!line||line.startsWith("#"))continue;
