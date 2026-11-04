@@ -445,7 +445,7 @@ function startQuiz(kind){let items;
   if(kind==="flashfoto"){const m=mieWords();items=[...shuffle(m.filter(w=>!isDone(w.id))),...shuffle(m.filter(w=>isDone(w.id)))].map(w=>({w,mode:"carte",dir:"it-de"}))}
   else if(kind==="flashimp"){items=shuffle(imparateTutte()).map(w=>({w,mode:"carte",dir:"it-de"}))}
   else if(kind==="flash"){const seen=new Set(),pool=[];for(const w of [...mieWords(),...wordsOf(currentList())])if(!seen.has(w.id)){seen.add(w.id);pool.push(w)}
-    const nd=pool.filter(w=>!isDone(w.id)),dn=pool.filter(w=>isDone(w.id));items=[...shuffle(nd),...shuffle(dn)].slice(0,20).map(w=>({w,mode:"carte",dir:"it-de"}))}
+    const nd=pool.filter(w=>!isDone(w.id)),dn=pool.filter(w=>isDone(w.id));items=[...shuffle(nd),...shuffle(dn)].map(w=>({w,mode:"carte",dir:"it-de"}))}
   else if(kind==="libero"){const seen=activeWords().filter(w=>cardOf(w.id));items=shuffle(seen).slice(0,10).map(w=>({w}))}
   else if(kind==="ripasso"){items=shuffle(dueToday()).slice(0,20).map(w=>({w}))}
   else{const lim=newLeftToday(),all=newWords();const p1=all.filter(w=>!passedR1(w.id)),p2=all.filter(w=>passedR1(w.id));
