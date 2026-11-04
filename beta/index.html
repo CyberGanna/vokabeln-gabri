@@ -351,6 +351,7 @@ function vHome(){if(!S.nome)return vNome();const cur=currentList(),ci=currentIdx
     ${due.length?`<button class="big" id="review">Ripassa le parole da rinforzare (${due.length})</button>`:""}
     <p class="label" style="margin-top:6px">Flash card 🇮🇹 → 🇩🇪</p>
     <div class="two"><button id="flash">Capitolo<br><span class="small muted">20 carte</span></button><button id="flashimp" ${imparateTutte().length?"":"disabled"}>Le mie parole imparate<br><span class="small muted">${imparateTutte().length?`${Math.min(20,imparateTutte().length)} carte su ${imparateTutte().length}`:"ancora nessuna"}</span></button></div>
+    ${mieWords().length?`<button class="big" id="flashfoto">Parole dalle foto e aggiunte<br><span class="small muted">${Math.min(20,mieWords().length)} carte su ${mieWords().length}</span></button>`:""}
     ${words.some(w=>cardOf(w.id))?`<button class="big" id="free">Ripasso libero (10 parole già viste)</button>`:""}
     <p class="label" style="margin-top:6px">Per i ripassi extra</p>
     <div class="row"><span class="label">Domanda in</span></div>
@@ -441,7 +442,8 @@ function vListe(){const ci=currentIdx();
 
 /* ---------- quiz ---------- */
 function startQuiz(kind){let items;
-  if(kind==="flashimp"){items=shuffle(imparateTutte()).slice(0,20).map(w=>({w,mode:"carte",dir:"it-de"}))}
+  if(kind==="flashfoto"){const m=mieWords();items=[...shuffle(m.filter(w=>!isDone(w.id))),...shuffle(m.filter(w=>isDone(w.id)))].slice(0,20).map(w=>({w,mode:"carte",dir:"it-de"}))}
+  else if(kind==="flashimp"){items=shuffle(imparateTutte()).slice(0,20).map(w=>({w,mode:"carte",dir:"it-de"}))}
   else if(kind==="flash"){const seen=new Set(),pool=[];for(const w of [...mieWords(),...wordsOf(currentList())])if(!seen.has(w.id)){seen.add(w.id);pool.push(w)}
     const nd=pool.filter(w=>!isDone(w.id)),dn=pool.filter(w=>isDone(w.id));items=[...shuffle(nd),...shuffle(dn)].slice(0,20).map(w=>({w,mode:"carte",dir:"it-de"}))}
   else if(kind==="libero"){const seen=activeWords().filter(w=>cardOf(w.id));items=shuffle(seen).slice(0,10).map(w=>({w}))}
@@ -730,6 +732,7 @@ document.addEventListener("click",e=>{const t=e.target.closest("button,#flip");i
   if(t.id==="free"){startQuiz("libero");return}
   if(t.id==="flash"){startQuiz("flash");return}
   if(t.id==="flashimp"){startQuiz("flashimp");return}
+  if(t.id==="flashfoto"){startQuiz("flashfoto");return}
   if(t.id==="home"){view="home";render();return}
   if(t.id==="quit"){view="home";Q=null;render();return}
   if(t.id==="next"){nextQ();return}
